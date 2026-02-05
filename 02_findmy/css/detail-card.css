@@ -1,0 +1,132 @@
+.detail-card {
+  display: none;
+  padding: var(--space-md);
+}
+
+.detail-card.visible {
+  display: block;
+}
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.detail-back {
+  padding: var(--space-xs) 0;
+  color: var(--color-blue);
+  font-size: var(--font-body);
+  font-weight: var(--font-weight-regular);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.detail-back:active {
+  opacity: 0.5;
+}
+
+.detail-back-chevron {
+  flex-shrink: 0;
+}
+
+.detail-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.detail-avatar-label {
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+  color: #FFFFFF;
+}
+
+.detail-avatar-icon {
+  font-size: 32px;
+}
+
+.detail-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-name {
+  font-size: var(--font-title3);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.detail-subtitle {
+  font-size: var(--font-subhead);
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+.detail-time {
+  font-size: var(--font-footnote);
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+}
+
+.detail-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.detail-action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-sm);
+  background: var(--color-fill);
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast) ease;
+}
+
+.detail-action-btn:active {
+  background: var(--color-separator);
+}
+
+.detail-action-icon {
+  font-size: 22px;
+}
+
+.detail-action-label {
+  font-size: var(--font-caption1);
+  color: var(--color-blue);
+  font-weight: var(--font-weight-medium);
+}
+
+.detail-coords {
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  background: var(--color-fill);
+  border-radius: var(--radius-md);
+}
+
+.detail-coords-label {
+  font-size: var(--font-caption1);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-xs);
+}
+
+.detail-coords-value {
+  font-size: var(--font-footnote);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}

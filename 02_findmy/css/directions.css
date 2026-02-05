@@ -1,0 +1,135 @@
+.directions-card {
+  display: none;
+  padding: var(--space-md);
+}
+
+.directions-card.visible {
+  display: block;
+}
+
+/* Close/Back button */
+.directions-close {
+  padding: var(--space-xs) 0;
+  color: var(--color-blue);
+  font-size: var(--font-body);
+  font-weight: var(--font-weight-regular);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+
+.directions-close:active {
+  opacity: 0.5;
+}
+
+.directions-close-chevron {
+  flex-shrink: 0;
+}
+
+/* iOS Segmented Control — transport modes */
+.directions-modes {
+  display: flex;
+  background: var(--color-fill);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  margin-bottom: var(--space-md);
+}
+
+.directions-mode-btn {
+  flex: 1;
+  padding: 6px 0;
+  font-size: var(--font-footnote);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  border-radius: 6px;
+  text-align: center;
+  transition: all var(--duration-fast) ease;
+}
+
+.directions-mode-btn.active {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Route summary */
+.directions-summary {
+  text-align: center;
+  margin-bottom: var(--space-md);
+}
+
+.directions-time {
+  font-size: var(--font-title1);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.directions-time-unit {
+  font-size: var(--font-title3);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.directions-distance {
+  font-size: var(--font-subhead);
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+/* Go button */
+.directions-go-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--color-green);
+  color: #FFFFFF;
+  font-size: var(--font-headline);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-md);
+  text-align: center;
+  margin-bottom: var(--space-md);
+  transition: opacity var(--duration-fast) ease;
+}
+
+.directions-go-btn:active {
+  opacity: 0.7;
+}
+
+/* Origin / Destination endpoints */
+.directions-endpoints {
+  background: var(--color-fill);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.directions-endpoint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+}
+
+.directions-endpoint:first-child {
+  border-bottom: 0.5px solid var(--color-separator);
+}
+
+.directions-endpoint-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.directions-endpoint-dot.origin {
+  background: var(--color-blue);
+}
+
+.directions-endpoint-dot.destination {
+  background: var(--color-red);
+}
+
+.directions-endpoint-label {
+  font-size: var(--font-body);
+  color: var(--color-text-primary);
+}

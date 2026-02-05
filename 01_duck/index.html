@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duck & Truck Alert</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* ===== WATCH FRAME ===== */
+    #watch-body {
+      width: 260px;
+      height: 320px;
+      background: linear-gradient(145deg, #3a3a3a, #222222);
+      border-radius: 72px;
+      position: relative;
+      box-shadow:
+        0 0 0 3px #555,
+        0 0 0 6px #1a1a1a,
+        0 20px 60px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #digital-crown {
+      position: absolute;
+      right: -14px;
+      top: 75px;
+      width: 10px;
+      height: 40px;
+      background: linear-gradient(to right, #555, #888, #555);
+      border-radius: 3px;
+      box-shadow: 2px 0 4px rgba(0,0,0,0.4);
+    }
+
+    #digital-crown::after {
+      content: '';
+      position: absolute;
+      top: 4px; left: 2px; right: 2px; bottom: 4px;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 4px);
+      border-radius: 1px;
+    }
+
+    #side-button {
+      position: absolute;
+      right: -12px;
+      top: 130px;
+      width: 8px;
+      height: 24px;
+      background: linear-gradient(to right, #555, #777, #555);
+      border-radius: 2px;
+      box-shadow: 2px 0 3px rgba(0,0,0,0.3);
+    }
+
+    #watch-screen {
+      width: 210px;
+      height: 256px;
+      background: #000;
+      border-radius: 52px;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+    }
+
+    /* ===== VIBRATION ===== */
+    @keyframes vibrate {
+      0%, 100% { transform: translate(0); }
+      10% { transform: translate(-2px, 1px); }
+      20% { transform: translate(2px, -1px); }
+      30% { transform: translate(-1px, 2px); }
+      40% { transform: translate(1px, -2px); }
+      50% { transform: translate(-2px, 0); }
+      60% { transform: translate(2px, 1px); }
+      70% { transform: translate(0, -1px); }
+      80% { transform: translate(-1px, 1px); }
+      90% { transform: translate(1px, 0); }
+    }
+    #watch-body.vibrating {
+      animation: vibrate 0.3s ease-in-out 3;
+    }
+
+    /* ===== BACKGROUND APPS ===== */
+    .bg-app {
+      display: none;
+      position: absolute;
+      inset: 0;
+      flex-direction: column;
+      padding: 28px 16px 16px;
+      background: #000;
+      color: #fff;
+      font-size: 13px;
+    }
+    .bg-app.active { display: flex; }
+
+    .bg-app .app-time {
+      font-size: 10px;
+      color: #999;
+      text-align: center;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    /* Calendar */
+    #bg-calendar .cal-header {
+      font-size: 11px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+    #bg-calendar .cal-event {
+      background: #1c1c1e;
+      border-radius: 12px;
+      padding: 10px 12px;
+      border-left: 4px solid #FF9500;
+      margin-bottom: 8px;
+    }
+    #bg-calendar .cal-event-time {
+      font-size: 11px;
+      color: #FF9500;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    #bg-calendar .cal-event-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    #bg-calendar .cal-event-loc {
+      font-size: 11px;
+      color: #999;
+      margin-top: 2px;
+    }
+    #bg-calendar .cal-next {
+      font-size: 10px;
+      color: #666;
+      margin-top: 6px;
+    }
+
+    /* Messages */
+    #bg-messages .msg-header {
+      font-size: 11px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+    .msg-bubble {
+      max-width: 80%;
+      padding: 7px 11px;
+      border-radius: 14px;
+      font-size: 12px;
+      margin-bottom: 5px;
+      line-height: 1.35;
+    }
+    .msg-received {
+      background: #3a3a3c;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    .msg-sent {
+      background: #30d158;
+      color: #000;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+
+    /* Venmo */
+    #bg-venmo { align-items: center; justify-content: center; gap: 6px; }
+    #bg-venmo .venmo-logo {
+      font-size: 13px;
+      font-weight: 700;
+      color: #008CFF;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+    #bg-venmo .venmo-amount {
+      font-size: 32px;
+      font-weight: 200;
+    }
+    #bg-venmo .venmo-to {
+      font-size: 11px;
+      color: #999;
+    }
+    #bg-venmo .venmo-btn {
+      background: #30d158;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 32px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 8px;
+      font-family: inherit;
+    }
+
+    /* Weather */
+    #bg-weather { align-items: center; justify-content: center; gap: 2px; }
+    #bg-weather .weather-loc {
+      font-size: 11px;
+      color: #999;
+      font-weight: 500;
+    }
+    #bg-weather .weather-temp {
+      font-size: 48px;
+      font-weight: 200;
+      line-height: 1.1;
+    }
+    #bg-weather .weather-icon {
+      font-size: 28px;
+      margin: 2px 0;
+    }
+    #bg-weather .weather-desc {
+      font-size: 12px;
+      color: #ccc;
+    }
+    #bg-weather .weather-hl {
+      font-size: 10px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* Workout */
+    #bg-workout { align-items: center; justify-content: center; gap: 8px; }
+    .rings-container {
+      position: relative;
+      width: 110px;
+      height: 110px;
+    }
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 7px solid #333;
+    }
+    .ring-outer { width: 110px; height: 110px; top: 0; left: 0; }
+    .ring-middle { width: 88px; height: 88px; top: 11px; left: 11px; }
+    .ring-inner { width: 66px; height: 66px; top: 22px; left: 22px; }
+    .ring-fill {
+      position: absolute;
+      border-radius: 50%;
+      border: 7px solid transparent;
+    }
+    .ring-fill-outer {
+      width: 110px; height: 110px; top: 0; left: 0;
+      border-top-color: #FF375F;
+      border-right-color: #FF375F;
+      border-bottom-color: #FF375F;
+      transform: rotate(-45deg);
+    }
+    .ring-fill-middle {
+      width: 88px; height: 88px; top: 11px; left: 11px;
+      border-top-color: #30D158;
+      border-right-color: #30D158;
+      transform: rotate(-45deg);
+    }
+    .ring-fill-inner {
+      width: 66px; height: 66px; top: 22px; left: 22px;
+      border-top-color: #00E5CC;
+      border-right-color: #00E5CC;
+      border-bottom-color: #00E5CC;
+      border-left-color: #00E5CC;
+      transform: rotate(-45deg);
+    }
+    .workout-stats {
+      font-size: 10px;
+      color: #999;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .workout-stats span { font-weight: 600; }
+    .ws-move { color: #FF375F; }
+    .ws-exercise { color: #30D158; }
+    .ws-stand { color: #00E5CC; }
+
+    /* Music */
+    #bg-music { align-items: center; justify-content: center; gap: 6px; }
+    .album-art {
+      width: 80px;
+      height: 80px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #667eea, #764ba2, #f77062);
+    }
+    .music-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .music-artist {
+      font-size: 11px;
+      color: #999;
+    }
+    .music-controls {
+      display: flex;
+      gap: 24px;
+      font-size: 18px;
+      margin-top: 6px;
+      color: #fff;
+    }
+    .music-controls span {
+      opacity: 0.9;
+    }
+
+    /* ===== NOTIFICATION BANNER ===== */
+    #notification-banner {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 14px 14px;
+      background: rgba(44, 44, 46, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 0 0 20px 20px;
+      transform: translateY(-100%);
+      cursor: pointer;
+    }
+    #notification-banner.visible {
+      animation: notifSlideDown 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    @keyframes notifSlideDown {
+      from { transform: translateY(-100%); }
+      to   { transform: translateY(0); }
+    }
+    #notif-icon { font-size: 28px; flex-shrink: 0; }
+    #notif-content { flex: 1; min-width: 0; }
+    #notif-title {
+      font-size: 13px;
+      font-weight: 700;
+    }
+    #notif-subtitle {
+      font-size: 11px;
+      color: #aaa;
+      margin-top: 2px;
+    }
+    #notif-app-label {
+      font-size: 9px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 3px;
+    }
+
+    /* ===== OVERLAY SCREENS ===== */
+    .screen {
+      display: none;
+      position: absolute;
+      inset: 0;
+      flex-direction: column;
+      align-items: center;
+      background: #000;
+      z-index: 30;
+      overflow-y: auto;
+    }
+    .screen.active { display: flex; }
+
+    /* Detail — illustrated scene */
+    #screen-detail {
+      padding: 0;
+      justify-content: flex-end;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* Sky */
+    #scene-sky {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, #4a90d9 0%, #87ceeb 40%, #b8e0f0 70%, #d4ecf7 100%);
+      z-index: 0;
+    }
+
+    /* Clouds */
+    .cloud {
+      position: absolute;
+      background: rgba(255,255,255,0.8);
+      border-radius: 20px;
+      height: 12px;
+      z-index: 1;
+    }
+    .cloud::before, .cloud::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.8);
+      border-radius: 50%;
+    }
+    .cloud::before {
+      width: 18px; height: 18px;
+      top: -10px; left: 6px;
+    }
+    .cloud::after {
+      width: 14px; height: 14px;
+      top: -7px; right: 6px;
+    }
+    #cloud1 { width: 40px; top: 30px; left: 15px; }
+    #cloud2 { width: 32px; top: 50px; right: 20px; opacity: 0.6; }
+    #cloud3 { width: 28px; top: 20px; right: 55px; opacity: 0.5; }
+
+    /* Ground */
+    #scene-ground {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 72px;
+      background: linear-gradient(180deg, #5a9e3e 0%, #4a8a32 30%, #3d7528 100%);
+      z-index: 2;
+      border-top: 2px solid #6db44e;
+    }
+    /* Grass tufts */
+    #scene-ground::before {
+      content: '';
+      position: absolute;
+      top: -4px; left: 0; right: 0;
+      height: 8px;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent, transparent 8px,
+        #6db44e 8px, #6db44e 9px,
+        transparent 9px, transparent 14px
+      );
+    }
+
+    /* Path/dirt */
+    #scene-path {
+      position: absolute;
+      bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 40px; height: 72px;
+      background: linear-gradient(180deg, #a08060 0%, #b89870 100%);
+      z-index: 3;
+      border-radius: 20px 20px 0 0;
+      opacity: 0.5;
+    }
+
+    /* Emoji target in scene */
+    #detail-emoji {
+      position: absolute;
+      z-index: 4;
+      left: 50%;
+      transition: transform 0.9s cubic-bezier(0.34, 1.2, 0.64, 1),
+                  bottom 0.9s cubic-bezier(0.34, 1.2, 0.64, 1),
+                  font-size 0.9s cubic-bezier(0.34, 1.2, 0.64, 1);
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    /* HUD overlay — arrow + info at top */
+    #detail-hud {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 18px 12px 0;
+      gap: 1px;
+    }
+    #detail-hud-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #detail-arrow {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      display: inline-block;
+      transition: transform 0.8s cubic-bezier(0.34, 1.2, 0.64, 1);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+    #detail-dir-text {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 1px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+    #detail-distance {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+    #detail-distance span {
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.85;
+    }
+    #detail-coolness {
+      font-size: 9px;
+      color: rgba(255,255,255,0.8);
+      font-style: italic;
+      text-align: center;
+      padding: 0 10px;
+      line-height: 1.3;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    /* Button at bottom */
+    #btn-see-it {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(48, 209, 88, 0.95);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 0;
+      width: 130px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      letter-spacing: 0.3px;
+    }
+    #btn-see-it:active { opacity: 0.7; }
+
+    /* Rating */
+    #screen-rating {
+      justify-content: center;
+      gap: 8px;
+      padding: 16px 12px;
+    }
+    #rating-emoji { font-size: 32px; }
+    #rating-prompt {
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.4;
+      padding: 0 4px;
+    }
+    #rating-stars {
+      display: flex;
+      gap: 6px;
+      margin-top: 2px;
+    }
+    .star {
+      font-size: 26px;
+      color: #3a3a3c;
+      cursor: pointer;
+      transition: color 0.15s, transform 0.15s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .star.filled { color: #FFD60A; }
+    .star:active { transform: scale(1.3); }
+    #rating-why-label {
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+    }
+    #rating-reasons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    .reason-pill {
+      background: #1c1c1e;
+      color: #ccc;
+      border: 1.5px solid #3a3a3c;
+      border-radius: 14px;
+      padding: 4px 10px;
+      font-size: 10px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .reason-pill.selected {
+      background: #2c2c2e;
+      border-color: #FFD60A;
+      color: #fff;
+    }
+    .reason-pill:active { transform: scale(0.95); }
+
+    /* Saved */
+    #screen-saved {
+      justify-content: center;
+      gap: 8px;
+      padding: 20px;
+    }
+    #saved-check {
+      font-size: 40px;
+      color: #30d158;
+      font-weight: 300;
+      animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes popIn {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    #saved-text {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    #saved-stars {
+      font-size: 18px;
+      color: #FFD60A;
+      letter-spacing: 2px;
+    }
+    #saved-reason {
+      font-size: 11px;
+      color: #888;
+      font-style: italic;
+    }
+
+    /* ===== PAGE CHROME ===== */
+    #page-title {
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #fff;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      opacity: 0.7;
+    }
+    #page-footer {
+      margin-top: 24px;
+      font-size: 10px;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+  <div id="page-title">Duck & Truck Alert</div>
+
+  <div id="watch-body">
+    <div id="digital-crown"></div>
+    <div id="side-button"></div>
+    <div id="watch-screen">
+
+      <!-- ===== BACKGROUND APPS ===== -->
+      <div class="bg-app" id="bg-calendar">
+        <div class="app-time">9:41</div>
+        <div class="cal-header">Wednesday, Jan 29</div>
+        <div class="cal-event">
+          <div class="cal-event-time">10:30 AM</div>
+          <div class="cal-event-title">Design Review</div>
+          <div class="cal-event-loc">Conf Room B</div>
+        </div>
+        <div class="cal-next">Next: Lunch 12:00 PM</div>
+      </div>
+
+      <div class="bg-app" id="bg-messages">
+        <div class="app-time">9:41</div>
+        <div class="msg-header">Sarah</div>
+        <div class="msg-bubble msg-received">Hey, are you coming to the park?</div>
+        <div class="msg-bubble msg-received">Bring coffee ☕</div>
+        <div class="msg-bubble msg-sent">On my way!</div>
+      </div>
+
+      <div class="bg-app" id="bg-venmo">
+        <div class="app-time">9:41</div>
+        <div class="venmo-logo">venmo</div>
+        <div class="venmo-amount">$4.50</div>
+        <div class="venmo-to">Blue Bottle Coffee</div>
+        <button class="venmo-btn">Pay</button>
+      </div>
+
+      <div class="bg-app" id="bg-weather">
+        <div class="app-time">9:41</div>
+        <div class="weather-loc">San Francisco</div>
+        <div class="weather-temp">62°</div>
+        <div class="weather-icon">⛅</div>
+        <div class="weather-desc">Partly Cloudy</div>
+        <div class="weather-hl">H:68°  L:54°</div>
+      </div>
+
+      <div class="bg-app" id="bg-workout">
+        <div class="app-time">9:41</div>
+        <div class="rings-container">
+          <div class="ring ring-outer"></div>
+          <div class="ring-fill ring-fill-outer"></div>
+          <div class="ring ring-middle"></div>
+          <div class="ring-fill ring-fill-middle"></div>
+          <div class="ring ring-inner"></div>
+          <div class="ring-fill ring-fill-inner"></div>
+        </div>
+        <div class="workout-stats">
+          <span class="ws-move">420</span>/500 CAL &nbsp;
+          <span class="ws-exercise">22</span>/30 MIN<br>
+          <span class="ws-stand">9</span>/12 HRS
+        </div>
+      </div>
+
+      <div class="bg-app" id="bg-music">
+        <div class="app-time">9:41</div>
+        <div class="album-art"></div>
+        <div class="music-title">Midnight City</div>
+        <div class="music-artist">M83</div>
+        <div class="music-controls">
+          <span>⏮</span>
+          <span>▶</span>
+          <span>⏭</span>
+        </div>
+      </div>
+
+      <!-- ===== NOTIFICATION BANNER ===== -->
+      <div id="notification-banner">
+        <div id="notif-icon"></div>
+        <div id="notif-content">
+          <div id="notif-app-label">DUCK & TRUCK</div>
+          <div id="notif-title"></div>
+          <div id="notif-subtitle"></div>
+        </div>
+      </div>
+
+      <!-- ===== DETAIL SCREEN ===== -->
+      <div id="screen-detail" class="screen">
+        <!-- Scene layers -->
+        <div id="scene-sky"></div>
+        <div class="cloud" id="cloud1"></div>
+        <div class="cloud" id="cloud2"></div>
+        <div class="cloud" id="cloud3"></div>
+        <div id="scene-path"></div>
+        <div id="scene-ground"></div>
+        <div id="detail-emoji"></div>
+
+        <!-- HUD overlay -->
+        <div id="detail-hud">
+          <div id="detail-hud-row">
+            <span id="detail-arrow">↑</span>
+            <span id="detail-dir-text"></span>
+          </div>
+          <div id="detail-distance"></div>
+          <div id="detail-coolness"></div>
+        </div>
+
+        <button id="btn-see-it">I see it!</button>
+      </div>
+
+      <!-- ===== RATING SCREEN ===== -->
+      <div id="screen-rating" class="screen">
+        <div id="rating-emoji"></div>
+        <div id="rating-prompt"></div>
+        <div id="rating-stars">
+          <span class="star" data-value="1">★</span>
+          <span class="star" data-value="2">★</span>
+          <span class="star" data-value="3">★</span>
+          <span class="star" data-value="4">★</span>
+          <span class="star" data-value="5">★</span>
+        </div>
+        <div id="rating-why-label">Why?</div>
+        <div id="rating-reasons"></div>
+      </div>
+
+      <!-- ===== SAVED SCREEN ===== -->
+      <div id="screen-saved" class="screen">
+        <div id="saved-check">✓</div>
+        <div id="saved-text">Saved!</div>
+        <div id="saved-stars"></div>
+        <div id="saved-reason"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="page-footer">Press Enter to trigger alert &nbsp;·&nbsp; v2.0</div>
+
+  <script>
+    // ===== STATE =====
+    const State = {
+      BG_APP: 'bg_app',
+      NOTIFICATION: 'notification',
+      DETAIL: 'detail',
+      RATING: 'rating',
+      SAVED: 'saved',
+    };
+
+    const app = {
+      currentState: State.BG_APP,
+      currentBgApp: null,
+      currentSpawn: null,
+      spawnTimer: null,
+      dismissTimer: null,
+      distanceInterval: null,
+      selectedRating: 0,
+      selectedReason: null,
+    };
+
+    // ===== DATA =====
+    const BG_APPS = ['calendar', 'messages', 'venmo', 'weather', 'workout', 'music'];
+    const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const DIR_ANGLES = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SW: 225, W: 270, NW: 315 };
+
+    const DUCK_COOLNESS = [
+      "Mallard with iridescent green head",
+      "Tiny duckling paddling in circles",
+      "Wood duck with painted feathers",
+      "Rubber duck someone left on a bench",
+      "Muscovy duck looking very serious",
+      "Mandarin duck, absurdly colorful",
+      "Two ducks waddling in a line",
+      "Fluffy white Pekin duck",
+    ];
+
+    const TRUCK_COOLNESS = [
+      "Massive red fire truck with ladder",
+      "Ice cream truck playing a jingle",
+      "Monster truck with flame decals",
+      "Vintage mail truck, powder blue",
+      "Cement mixer spinning slowly",
+      "Moving truck blocking the whole street",
+      "Shiny yellow dump truck",
+      "Logging truck carrying huge trees",
+    ];
+
+    const DUCK_REASONS_HIGH = [
+      "Good color", "Flappy walk", "Funny", "Soft looking",
+      "Did a quack", "Liked the beak", "Splashy", "Very round",
+      "So cute", "Waddled funny",
+    ];
+    const DUCK_REASONS_LOW = [
+      "Too far away", "Flew away", "Boring color", "Didn't quack",
+      "Too small", "Wasn't fluffy", "Looked mean", "Not a baby one",
+    ];
+
+    const TRUCK_REASONS_HIGH = [
+      "So big", "Cool wheels", "Funny horn", "Good color",
+      "Very fast", "Shiny", "Had a ladder", "Really loud",
+      "Had lights on", "Was enormous",
+    ];
+    const TRUCK_REASONS_LOW = [
+      "Too small", "Boring color", "Didn't honk", "Went too fast",
+      "Too far away", "Not shiny", "Just a van", "Was parked",
+    ];
+
+    // ===== HELPERS =====
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    function triggerVibration() {
+      const body = document.getElementById('watch-body');
+      body.classList.remove('vibrating');
+      void body.offsetWidth;
+      body.classList.add('vibrating');
+      body.addEventListener('animationend', () => body.classList.remove('vibrating'), { once: true });
+    }
+
+    // ===== BACKGROUND APPS =====
+    function showRandomBgApp() {
+      const available = BG_APPS.filter(a => a !== app.currentBgApp);
+      const chosen = pick(available);
+      app.currentBgApp = chosen;
+
+      document.querySelectorAll('.bg-app').forEach(el => el.classList.remove('active'));
+      document.getElementById('bg-' + chosen).classList.add('active');
+    }
+
+    // ===== SPAWN =====
+    function scheduleNextSpawn() {
+      const delay = 4000 + Math.random() * 5000;
+      app.spawnTimer = setTimeout(spawnEntity, delay);
+    }
+
+    function spawnEntity() {
+      const type = Math.random() < 0.5 ? 'duck' : 'truck';
+      const distance = Math.floor(Math.random() * 21) + 10; // 10-30m
+      const direction = pick(DIRECTIONS);
+      const coolness = pick(type === 'duck' ? DUCK_COOLNESS : TRUCK_COOLNESS);
+
+      app.currentSpawn = { type, distance, direction, coolness };
+      setState(State.NOTIFICATION);
+    }
+
+    // ===== NOTIFICATION =====
+    function showNotification(spawn) {
+      const banner = document.getElementById('notification-banner');
+      const icon = document.getElementById('notif-icon');
+      const title = document.getElementById('notif-title');
+      const subtitle = document.getElementById('notif-subtitle');
+
+      icon.textContent = spawn.type === 'duck' ? '🦆' : '🚛';
+      title.textContent = spawn.type === 'duck' ? 'Duck Nearby!' : 'Truck Spotted!';
+      subtitle.textContent = spawn.distance + 'm · ' + spawn.direction;
+
+      // Reset animation
+      banner.classList.remove('visible');
+      banner.style.display = 'flex';
+      banner.style.transform = 'translateY(-100%)';
+      void banner.offsetWidth;
+      banner.classList.add('visible');
+    }
+
+    function hideNotification() {
+      const banner = document.getElementById('notification-banner');
+      banner.classList.remove('visible');
+      banner.style.display = 'none';
+    }
+
+    // ===== DETAIL =====
+    function showDetail(spawn) {
+      document.getElementById('detail-emoji').textContent = spawn.type === 'duck' ? '🦆' : '🚛';
+      app.baseAngle = DIR_ANGLES[spawn.direction];
+      app.arrowDrift = 0;
+      app.startDistance = spawn.distance;
+      document.getElementById('detail-arrow').style.transform = 'rotate(' + app.baseAngle + 'deg)';
+      document.getElementById('detail-dir-text').textContent = spawn.direction;
+      updateDistanceDisplay(spawn.distance);
+      updateEmojiPosition(spawn.distance);
+      document.getElementById('detail-coolness').textContent = '"' + spawn.coolness + '"';
+    }
+
+    function updateDistanceDisplay(dist) {
+      const el = document.getElementById('detail-distance');
+      el.innerHTML = dist + ' <span>m</span>';
+
+      // Color shift: white → yellow → green as you approach
+      const t = 1 - Math.max(0, Math.min(1, (dist - 1) / (app.startDistance - 1)));
+      if (t > 0.8) {
+        el.style.color = '#30d158'; // green — you're here!
+      } else if (t > 0.5) {
+        el.style.color = '#FFD60A'; // yellow — getting close
+      } else {
+        el.style.color = '#fff';
+      }
+    }
+
+    function updateEmojiPosition(dist) {
+      const emoji = document.getElementById('detail-emoji');
+      const t = 1 - Math.max(0, Math.min(1, (dist - 1) / (app.startDistance - 1))); // 0=far, 1=here
+      // Exponential scaling — gets big fast at the end
+      const tCurve = t * t;
+      const size = 16 + tCurve * 52; // 16px → 68px
+      const bottom = 60 + tCurve * 28;
+      // Wobble decreases as you get closer
+      const xOff = (Math.random() - 0.5) * (1 - t) * 10;
+      emoji.style.fontSize = size + 'px';
+      emoji.style.bottom = bottom + 'px';
+      emoji.style.transform = 'translateX(calc(-50% + ' + xOff + 'px))';
+    }
+
+    function wobbleArrow() {
+      const spawn = app.currentSpawn;
+      if (!spawn) return;
+      // Wider drift when far, snaps tight when close
+      const t = 1 - Math.max(0, Math.min(1, (spawn.distance - 1) / (app.startDistance - 1)));
+      const maxDrift = 35 * (1 - t); // 35° when far → 0° when close
+      app.arrowDrift = (Math.random() - 0.5) * 2 * maxDrift;
+      const angle = app.baseAngle + app.arrowDrift;
+      document.getElementById('detail-arrow').style.transform = 'rotate(' + angle + 'deg)';
+    }
+
+    function startDistanceCountdown() {
+      function tick() {
+        if (!app.currentSpawn || app.currentState !== State.DETAIL) return;
+
+        const dist = app.currentSpawn.distance;
+        // Speed up as you get closer — simulates running
+        // Far: lose 1m every ~600ms. Close: lose 1m every ~200ms
+        const t = 1 - (dist - 1) / (app.startDistance - 1);
+        const interval = 600 - t * 400; // 600ms → 200ms
+        // Occasional burst of speed (kid spotted it and starts running!)
+        const burst = Math.random() < 0.15;
+        const decrement = burst ? 3 : 1;
+
+        app.currentSpawn.distance = Math.max(1, dist - decrement);
+        updateDistanceDisplay(app.currentSpawn.distance);
+        updateEmojiPosition(app.currentSpawn.distance);
+        wobbleArrow();
+
+        if (app.currentSpawn.distance <= 1) {
+          // Arrived! Snap arrow, show big emoji
+          document.getElementById('detail-arrow').style.transform = 'rotate(' + app.baseAngle + 'deg)';
+          updateDistanceDisplay(1);
+          return;
+        }
+
+        app.distanceInterval = setTimeout(tick, interval + (Math.random() - 0.5) * 100);
+      }
+
+      // Start after a brief pause
+      app.distanceInterval = setTimeout(tick, 400);
+    }
+
+    // ===== RATING =====
+    function showRatingScreen() {
+      app.selectedRating = 0;
+      app.selectedReason = null;
+      const spawn = app.currentSpawn;
+      const noun = spawn.type === 'duck' ? 'duck' : 'truck';
+      document.getElementById('rating-emoji').textContent = spawn.type === 'duck' ? '🦆' : '🚛';
+      document.getElementById('rating-prompt').textContent = 'What did your kid think of the ' + noun + '?';
+      document.querySelectorAll('.star').forEach(s => s.classList.remove('filled'));
+
+      // Hide why section until stars are tapped
+      document.getElementById('rating-why-label').style.display = 'none';
+      const container = document.getElementById('rating-reasons');
+      container.innerHTML = '';
+      container.style.display = 'none';
+    }
+
+    function showReasonsForRating(rating) {
+      const spawn = app.currentSpawn;
+      const isHigh = rating >= 4;
+      let pool;
+      if (spawn.type === 'duck') {
+        pool = isHigh ? DUCK_REASONS_HIGH : DUCK_REASONS_LOW;
+      } else {
+        pool = isHigh ? TRUCK_REASONS_HIGH : TRUCK_REASONS_LOW;
+      }
+      // For a 3, mix some from each
+      if (rating === 3) {
+        const highPool = spawn.type === 'duck' ? DUCK_REASONS_HIGH : TRUCK_REASONS_HIGH;
+        const lowPool = spawn.type === 'duck' ? DUCK_REASONS_LOW : TRUCK_REASONS_LOW;
+        const h = [...highPool].sort(() => Math.random() - 0.5).slice(0, 2);
+        const l = [...lowPool].sort(() => Math.random() - 0.5).slice(0, 2);
+        pool = [...h, ...l];
+      } else {
+        pool = [...pool].sort(() => Math.random() - 0.5).slice(0, 4);
+      }
+
+      document.getElementById('rating-why-label').style.display = '';
+      const container = document.getElementById('rating-reasons');
+      container.style.display = '';
+      container.innerHTML = '';
+
+      pool.forEach(reason => {
+        const pill = document.createElement('button');
+        pill.className = 'reason-pill';
+        pill.textContent = reason;
+        pill.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (app.currentState !== State.RATING) return;
+          container.querySelectorAll('.reason-pill').forEach(p => p.classList.remove('selected'));
+          pill.classList.add('selected');
+          app.selectedReason = reason;
+          tryFinishRating();
+        });
+        container.appendChild(pill);
+      });
+    }
+
+    function highlightStars(upTo) {
+      document.querySelectorAll('.star').forEach(s => {
+        if (parseInt(s.dataset.value) <= upTo) s.classList.add('filled');
+        else s.classList.remove('filled');
+      });
+    }
+
+    function tryFinishRating() {
+      if (app.selectedRating > 0 && app.selectedReason) {
+        setTimeout(() => setState(State.SAVED), 400);
+      }
+    }
+
+    // ===== SAVED =====
+    function showSavedScreen() {
+      const starsStr = '⭐'.repeat(app.selectedRating);
+      document.getElementById('saved-stars').textContent = starsStr;
+      document.getElementById('saved-reason').textContent = app.selectedReason ? '"' + app.selectedReason + '"' : '';
+      // Re-trigger pop animation
+      const check = document.getElementById('saved-check');
+      check.style.animation = 'none';
+      void check.offsetWidth;
+      check.style.animation = '';
+    }
+
+    // ===== STATE MACHINE =====
+    function setState(newState) {
+      clearTimeout(app.spawnTimer);
+      clearTimeout(app.dismissTimer);
+      clearTimeout(app.distanceInterval);
+
+      app.currentState = newState;
+
+      // Hide overlay screens
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+
+      switch (newState) {
+        case State.BG_APP:
+          hideNotification();
+          showRandomBgApp();
+          scheduleNextSpawn();
+          break;
+
+        case State.NOTIFICATION:
+          showNotification(app.currentSpawn);
+          triggerVibration();
+          app.dismissTimer = setTimeout(() => setState(State.BG_APP), 6000);
+          break;
+
+        case State.DETAIL:
+          hideNotification();
+          showDetail(app.currentSpawn);
+          document.getElementById('screen-detail').classList.add('active');
+          startDistanceCountdown();
+          break;
+
+        case State.RATING:
+          showRatingScreen();
+          document.getElementById('screen-rating').classList.add('active');
+          break;
+
+        case State.SAVED:
+          showSavedScreen();
+          document.getElementById('screen-saved').classList.add('active');
+          app.dismissTimer = setTimeout(() => setState(State.BG_APP), 1500);
+          break;
+      }
+    }
+
+    // ===== EVENT HANDLERS =====
+    document.getElementById('notification-banner').addEventListener('click', () => {
+      if (app.currentState === State.NOTIFICATION) setState(State.DETAIL);
+    });
+
+    document.getElementById('btn-see-it').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (app.currentState === State.DETAIL) setState(State.RATING);
+    });
+
+    document.querySelectorAll('.star').forEach(star => {
+      star.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (app.currentState !== State.RATING) return;
+        const newRating = parseInt(star.dataset.value);
+        const ratingChanged = newRating !== app.selectedRating;
+        app.selectedRating = newRating;
+        highlightStars(app.selectedRating);
+        if (ratingChanged) {
+          app.selectedReason = null;
+          showReasonsForRating(app.selectedRating);
+        }
+      });
+    });
+
+    // ===== ENTER KEY TRIGGER =====
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      switch (app.currentState) {
+        case State.BG_APP:
+          clearTimeout(app.spawnTimer);
+          spawnEntity();
+          break;
+        case State.NOTIFICATION:
+          setState(State.DETAIL);
+          break;
+        case State.DETAIL:
+          setState(State.RATING);
+          break;
+        case State.RATING:
+          if (app.selectedRating === 0) {
+            // First Enter: pick random stars
+            app.selectedRating = Math.floor(Math.random() * 5) + 1;
+            highlightStars(app.selectedRating);
+            showReasonsForRating(app.selectedRating);
+          } else if (!app.selectedReason) {
+            // Second Enter: pick random reason
+            const pills = document.querySelectorAll('#rating-reasons .reason-pill');
+            if (pills.length > 0) {
+              const randomPill = pills[Math.floor(Math.random() * pills.length)];
+              randomPill.click();
+            }
+          }
+          break;
+      }
+    });
+
+    // ===== INIT =====
+    setState(State.BG_APP);
+  </script>
+</body>
+</html>

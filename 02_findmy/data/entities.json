@@ -1,0 +1,118 @@
+[
+  {
+    "id": "duck-1",
+    "category": "ducks",
+    "name": "Mallard Steve",
+    "subtitle": "Golden Gate Park Pond",
+    "initials": "MS",
+    "icon": "🦆",
+    "color": "#FF9500",
+    "position": [-122.4786, 37.7694],
+    "movement": { "pattern": "random-walk", "speed": 0.00008 }
+  },
+  {
+    "id": "duck-2",
+    "category": "ducks",
+    "name": "Pekin Donna",
+    "subtitle": "Stow Lake",
+    "initials": "PD",
+    "icon": "🦆",
+    "color": "#FF9F0A",
+    "position": [-122.4740, 37.7691],
+    "movement": { "pattern": "circular", "speed": 0.00005, "radius": 0.002 }
+  },
+  {
+    "id": "duck-3",
+    "category": "ducks",
+    "name": "Rubber Duck #7",
+    "subtitle": "Spreckels Lake",
+    "initials": "R7",
+    "icon": "🛁",
+    "color": "#FFCC00",
+    "position": [-122.4893, 37.7688],
+    "movement": { "pattern": "random-walk", "speed": 0.00004 }
+  },
+  {
+    "id": "duck-4",
+    "category": "ducks",
+    "name": "Wood Duck Larry",
+    "subtitle": "Palace of Fine Arts Lagoon",
+    "initials": "WL",
+    "icon": "🦆",
+    "color": "#FF6723",
+    "position": [-122.4485, 37.8025],
+    "movement": { "pattern": "random-walk", "speed": 0.00006 }
+  },
+  {
+    "id": "truck-1",
+    "category": "trucks",
+    "name": "Ice Cream Truck",
+    "subtitle": "Mission District",
+    "initials": "IC",
+    "icon": "🍦",
+    "color": "#34C759",
+    "position": [-122.4194, 37.7599],
+    "movement": { "pattern": "linear", "speed": 0.00015, "heading": 45 }
+  },
+  {
+    "id": "truck-2",
+    "category": "trucks",
+    "name": "Taco Truck",
+    "subtitle": "SoMa",
+    "initials": "TT",
+    "icon": "🌮",
+    "color": "#30D158",
+    "position": [-122.3994, 37.7749],
+    "movement": { "pattern": "linear", "speed": 0.0001, "heading": 180 }
+  },
+  {
+    "id": "truck-3",
+    "category": "trucks",
+    "name": "Coffee Van",
+    "subtitle": "Financial District",
+    "initials": "CV",
+    "icon": "☕",
+    "color": "#63E6BE",
+    "position": [-122.4004, 37.7929],
+    "movement": {
+      "pattern": "waypoints",
+      "speed": 0.0001,
+      "waypoints": [
+        [-122.4004, 37.7929],
+        [-122.4104, 37.7829],
+        [-122.4204, 37.7899],
+        [-122.4004, 37.7929]
+      ]
+    }
+  },
+  {
+    "id": "friend-1",
+    "category": "friends",
+    "name": "Alex Chen",
+    "subtitle": "Castro",
+    "initials": "AC",
+    "color": "#007AFF",
+    "position": [-122.4350, 37.7609],
+    "movement": { "pattern": "random-walk", "speed": 0.00006 }
+  },
+  {
+    "id": "friend-2",
+    "category": "friends",
+    "name": "Jordan Kim",
+    "subtitle": "Haight-Ashbury",
+    "initials": "JK",
+    "color": "#5856D6",
+    "position": [-122.4477, 37.7694],
+    "movement": { "pattern": "random-walk", "speed": 0.00004 }
+  },
+  {
+    "id": "friend-3",
+    "category": "friends",
+    "name": "Sam Rivera",
+    "subtitle": "North Beach",
+    "initials": "SR",
+    "color": "#AF52DE",
+    "position": [-122.4078, 37.8005],
+    "movement": { "pattern": "stationary" }
+  }
+]

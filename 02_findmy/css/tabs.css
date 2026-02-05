@@ -1,0 +1,66 @@
+/* iOS-style tab bar — fixed at bottom of phone screen */
+.tab-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 83px; /* 49pt content + 34pt home indicator area */
+  z-index: 200;
+  display: flex;
+  align-items: flex-start;
+  padding: 0;
+  background: var(--color-bg-secondary);
+  border-top: 0.5px solid var(--color-separator);
+  /* Slight translucency like real iOS tab bar */
+  background: rgba(242, 242, 247, 0.94);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 0 0;
+  position: relative;
+  color: #999;
+  transition: color var(--duration-fast) ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tab-item.active {
+  color: var(--color-blue);
+}
+
+.tab-item:active {
+  opacity: 0.6;
+}
+
+.tab-icon {
+  font-size: 22px;
+  line-height: 1;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-label {
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+}
+
+/* No underline — iOS uses color tinting only */
+
+.phone-screen.dark .tab-bar {
+  background: rgba(28, 28, 30, 0.94);
+  border-top-color: rgba(84, 84, 88, 0.6);
+}
+
+.phone-screen.dark .tab-item {
+  color: #666;
+}

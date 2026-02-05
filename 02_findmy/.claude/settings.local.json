@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(npm --version:*)",
+      "Bash(python3 -m http.server:*)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)",
+      "Bash(gh auth status:*)",
+      "Bash(git --version:*)",
+      "Bash(brew list:*)",
+      "Bash(brew install:*)",
+      "Bash(git config:*)",
+      "Bash(/tmp/gh_install/gh_2.63.2_macOS_arm64/bin/gh --version)",
+      "Bash(/tmp/gh_install/gh_2.63.2_macOS_arm64/bin/gh auth status:*)",
+      "Bash(/tmp/gh_install/gh_2.63.2_macOS_arm64/bin/gh api:*)",
+      "Bash(/tmp/gh_install/gh_2.63.2_macOS_arm64/bin/gh repo create:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

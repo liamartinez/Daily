@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <title>Find My</title>
+
+  <!-- MapLibre GL JS -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/phone-frame.css">
+  <link rel="stylesheet" href="css/map.css">
+  <link rel="stylesheet" href="css/bottom-sheet.css">
+  <link rel="stylesheet" href="css/tabs.css">
+  <link rel="stylesheet" href="css/entity-list.css">
+  <link rel="stylesheet" href="css/detail-card.css">
+  <link rel="stylesheet" href="css/directions.css">
+</head>
+<body>
+  <!-- iPhone Frame -->
+  <div class="phone-frame">
+    <div class="phone-bezel">
+      <!-- Dynamic Island -->
+      <div class="dynamic-island"></div>
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <div class="status-bar-left">
+          <span class="status-time">9:41</span>
+        </div>
+        <div class="status-bar-right">
+          <svg class="status-icon" width="15" height="11" viewBox="0 0 15 11" fill="currentColor">
+            <path d="M7.5 2.2C9.5 2.2 11.4 3 12.8 4.4L14.2 3C12.4 1.2 10 0 7.5 0S2.6 1.2.8 3L2.2 4.4C3.6 3 5.5 2.2 7.5 2.2z" opacity="0.95"/>
+            <path d="M7.5 5.5c1.3 0 2.5.5 3.4 1.4L12.3 5.5C11 4.2 9.3 3.5 7.5 3.5S4 4.2 2.7 5.5L4.1 6.9C5 6 6.2 5.5 7.5 5.5z" opacity="0.95"/>
+            <path d="M7.5 8.8c.7 0 1.3.3 1.8.7L7.5 11.3 5.7 9.5c.5-.4 1.1-.7 1.8-.7z" opacity="0.95"/>
+          </svg>
+          <svg class="status-icon" width="17" height="11" viewBox="0 0 17 11" fill="currentColor">
+            <rect x="0" y="3.5" width="3" height="7.5" rx="0.7" opacity="0.95"/>
+            <rect x="4.5" y="2" width="3" height="9" rx="0.7" opacity="0.95"/>
+            <rect x="9" y="0" width="3" height="11" rx="0.7" opacity="0.95"/>
+            <rect x="13.5" y="0" width="3" height="11" rx="0.7" opacity="0.3"/>
+          </svg>
+          <div class="status-battery">
+            <div class="battery-body">
+              <div class="battery-fill"></div>
+            </div>
+            <div class="battery-cap"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- App Content -->
+      <div class="phone-screen">
+        <!-- Map -->
+        <div id="map"></div>
+
+        <!-- Bottom Sheet -->
+        <div id="bottom-sheet" class="bottom-sheet">
+          <div class="sheet-handle-area">
+            <div class="sheet-handle"></div>
+          </div>
+          <div class="sheet-search">
+            <div class="search-field">
+              <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="5.5" cy="5.5" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="9" y1="9" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <span class="search-placeholder">Search</span>
+            </div>
+          </div>
+          <div class="sheet-content">
+            <div id="directions-card" class="directions-card"></div>
+            <div id="detail-card" class="detail-card"></div>
+            <div id="entity-list" class="entity-list"></div>
+          </div>
+        </div>
+
+        <!-- iOS Tab Bar (fixed at bottom, separate from sheet) -->
+        <div id="tab-bar" class="tab-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- App entry -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

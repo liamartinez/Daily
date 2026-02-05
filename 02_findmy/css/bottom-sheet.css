@@ -1,0 +1,85 @@
+.bottom-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 83px; /* above tab bar */
+  height: calc(100% - 59px); /* below status bar */
+  z-index: 100;
+  background: var(--color-bg-primary);
+  border-radius: 10px 10px 0 0;
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.1), 0 -4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(calc(100% - 260px));
+  transition: transform var(--duration-normal) var(--ease-spring);
+  will-change: transform;
+  touch-action: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.bottom-sheet.dragging {
+  transition: none;
+}
+
+.sheet-handle-area {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 2px;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.sheet-handle-area:active {
+  cursor: grabbing;
+}
+
+.sheet-handle {
+  width: var(--sheet-handle-width);
+  height: var(--sheet-handle-height);
+  border-radius: var(--radius-full);
+  background: rgba(60, 60, 67, 0.3);
+}
+
+.sheet-search {
+  padding: 0 var(--space-md) 6px;
+  flex-shrink: 0;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--color-fill);
+  border-radius: 10px;
+  cursor: text;
+}
+
+.search-icon {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.search-placeholder {
+  font-size: var(--font-body);
+  color: var(--color-text-tertiary);
+}
+
+.sheet-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.sheet-content::-webkit-scrollbar {
+  display: none;
+}
+
+.phone-screen.dark .bottom-sheet {
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.05), 0 -4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.phone-screen.dark .sheet-handle {
+  background: rgba(235, 235, 245, 0.3);
+}
