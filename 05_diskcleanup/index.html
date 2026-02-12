@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Declutter</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body>
+  <div class="app-layout">
+
+    <!-- Header (dense toolbar) -->
+    <header class="app-header">
+      <div class="header-left">
+        <span class="header-title">Declutter</span>
+        <span class="header-path">C:\Users\Home\</span>
+      </div>
+      <div class="view-toggle" id="view-toggle">
+        <button class="view-btn active" data-view="treemap">Treemap</button>
+        <button class="view-btn" data-view="sunburst">Sunburst</button>
+        <button class="view-btn" data-view="list">List</button>
+      </div>
+    </header>
+
+    <!-- Storage Bar -->
+    <div class="storage-bar-area" id="storage-bar"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <nav class="breadcrumb" id="breadcrumb"></nav>
+      <div class="sidebar-filters" id="sidebar-filters"></div>
+      <div class="detail-panel" id="detail-panel"></div>
+      <div class="sidebar-list" id="sidebar-list"></div>
+      <div class="extension-table" id="extension-table"></div>
+    </aside>
+
+    <!-- Main Visualization -->
+    <main class="viz-area" id="viz-area"></main>
+
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script type="module" src="js/app.js?v=4"></script>
+</body>
+</html>
