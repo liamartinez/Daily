@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlanetMaker v2</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
+  canvas#stage { display: block; position: absolute; inset: 0; }
+
+  #start-overlay {
+    position: absolute; inset: 0; z-index: 20;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.92); cursor: pointer;
+    font-family: Georgia, serif; text-align: center; padding: 2em;
+  }
+  #start-overlay h1 { font-size: 2.4em; margin: 0 0 0.3em; font-weight: normal; }
+  #start-overlay p { color: #555; max-width: 34em; line-height: 1.5; }
+  #start-overlay .go { margin-top: 1.5em; font-size: 1.2em; border: 1px solid #333;
+    padding: 0.6em 1.6em; border-radius: 999px; }
+
+  #panel {
+    position: absolute; top: 10px; right: 10px; z-index: 10;
+    width: 250px; background: rgba(250,250,250,0.94); border: 1px solid #ccc;
+    border-radius: 8px; font: 12px/1.4 -apple-system, "Helvetica Neue", sans-serif;
+    color: #222; user-select: none;
+    max-height: calc(100vh - 20px); overflow-y: auto;
+  }
+  #panel header { display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px; cursor: pointer; font-weight: 600; }
+  #panel.collapsed .body { display: none; }
+  #panel .body { padding: 0 10px 10px; }
+  .ctl { margin-bottom: 7px; }
+  .ctl label { display: flex; justify-content: space-between; }
+  .ctl label .val { color: #777; font-variant-numeric: tabular-nums; }
+  .ctl input[type=range] { width: 100%; margin: 2px 0 0; }
+  .ctl.check { display: flex; gap: 6px; align-items: center; }
+  #meter { position: relative; height: 14px; background: #e8e8e8; border-radius: 3px;
+    overflow: hidden; margin-top: 3px; }
+  #meter .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: #7cb47c; }
+  #meter .thresh { position: absolute; top: 0; bottom: 0; width: 2px; background: #c33; }
+  #meter.hot .fill { background: #d98f3d; }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .btnrow button { flex: 1 1 45%; padding: 5px 4px; font-size: 11px; cursor: pointer;
+    border: 1px solid #aaa; border-radius: 5px; background: #fff; }
+  .btnrow button:active { background: #eee; }
+  #settings-out { width: 100%; box-sizing: border-box; margin-top: 8px; font-size: 10px;
+    height: 70px; display: none; }
+  .section { margin: 10px 0 4px; font-weight: 600; color: #555; text-transform: uppercase;
+    font-size: 10px; letter-spacing: 0.06em; }
+</style>
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+
+<div id="panel" class="collapsed">
+  <header id="panel-toggle"><span>tweaks</span><span id="panel-arrow">▸</span></header>
+  <div class="body">
+    <div class="section">Microphone</div>
+    <div class="ctl">
+      <label>level <span class="val" id="level-val">0.0</span></label>
+      <div id="meter"><div class="fill"></div><div class="thresh"></div></div>
+    </div>
+    <div id="sliders-audio"></div>
+    <div class="section">Motion &amp; layout</div>
+    <div id="sliders-motion"></div>
+    <div class="section">Options</div>
+    <div id="checks"></div>
+    <div class="section">Hardware hooks</div>
+    <div class="ctl">
+      <label>distance sensor <span class="val" id="sensor-status">not connected</span></label>
+    </div>
+    <div class="btnrow"><button id="btn-sensor">connect sensor (serial)</button></div>
+    <div id="sliders-sensor"></div>
+    <div class="btnrow">
+      <button id="btn-startover">start over</button>
+      <button id="btn-save">save planet</button>
+      <button id="btn-copy">copy settings</button>
+      <button id="btn-reset">reset defaults</button>
+    </div>
+    <textarea id="settings-out" readonly></textarea>
+  </div>
+</div>
+
+<div id="start-overlay">
+  <h1>PlanetMaker</h1>
+  <p>Make a sound — sing, hum, whistle, talk — and an object lands on the planet.
+     Different pitches make different things. Hover in the top-right of the screen to zoom out.</p>
+  <p class="go">click to start (allows microphone)</p>
+</div>
+
+<script type="module" src="main.js?v=2"></script>
+</body>
+</html>
