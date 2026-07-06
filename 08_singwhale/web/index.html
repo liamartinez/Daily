@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sing Whale (2012)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin:0; height:100%; background:#2b3a44; overflow:hidden;
+               font-family: "Avenir Next", Futura, "Trebuchet MS", sans-serif; }
+  #stage { position:absolute; top:50%; left:50%; transform-origin:center; }
+  /* a little iPad-2 bezel, because it's 2012 */
+  #bezel { position:absolute; inset:-42px; background:#111; border-radius:34px;
+           box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 4px rgba(255,255,255,.15); }
+  #homebtn { position:absolute; right:-34px; top:50%; width:22px; height:22px;
+             transform:translateY(-50%); border-radius:50%; background:#000;
+             box-shadow: inset 0 0 3px rgba(255,255,255,.35); }
+  canvas { position:relative; display:block; background:#65a5cd; border-radius:2px; }
+  #hint { position:fixed; bottom:8px; width:100%; text-align:center;
+          color:rgba(255,255,255,.45); font-size:12px; letter-spacing:.4px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bezel"></div>
+  <div id="homebtn"></div>
+  <canvas id="c" width="1024" height="768"></canvas>
+</div>
+<div id="hint">SING WHALE · Lia Martinez, ITP 2012 · web recreation · drag the wheel, press the red button, sing to the whale 🎤</div>
+<script>
+/* ============================================================
+   SING WHALE — web recreation of SingWhale07 (openFrameworks/iPad, 2012)
+   Original: Lia Martinez, liamartinez.com — Nature of Code / thesis 2012
+   Art + sound assets were lost (gitignored bin/data); everything here is
+   rebuilt from the geometry, colors and mechanics in the .mm sources.
+   ============================================================ */
+const W = 1024, H = 768;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+// ---- fit the "iPad" on screen -------------------------------------------
+function fit() {
+  const s = Math.min(innerWidth/(W+120), innerHeight/(H+120));
+  const st = document.getElementById('stage');
+  st.style.transform = `translate(-50%,-50%) scale(${s})`;
+  st.style.width = W+'px'; st.style.height = H+'px';
+}
+addEventListener('resize', fit); fit();
+
+// ---- tiny tween helpers (Tweenzor stand-in) ------------------------------
+const easeOutQuad    = t => 1-(1-t)*(1-t);
+const easeInOutQuad  = t => t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+const easeOutElastic = t => t===0?0 : t===1?1 :
+  Math.pow(2,-10*t)*Math.sin((t*10-0.75)*(2*Math.PI/3))+1;
+const tweens = [];
+function tween(obj,key,to,dur,ease,onDone){
+  tweens.push({obj,key,from:obj[key],to,t:0,dur,ease,onDone});
+}
+function stepTweens(dt){
+  for(let i=tweens.length-1;i>=0;i--){ const tw=tweens[i];
+    tw.t += dt; const p = Math.min(1, tw.t/tw.dur);
+    tw.obj[tw.key] = tw.from + (tw.to-tw.from)*tw.ease(p);
+    if(p>=1){ tweens.splice(i,1); tw.onDone && tw.onDone(); }
+  }
+}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const map=(v,a,b,c,d)=>c+(d-c)*((v-a)/(b-a));
+
+// ---- ofCurveVertex (Catmull-Rom) -----------------------------------------
+function curveShape(pts, close){
+  // openFrameworks duplicates first/last points; same trick here
+  const p = [pts[0], ...pts, pts[pts.length-1]];
+  ctx.beginPath();
+  ctx.moveTo(p[1].x, p[1].y);
+  for(let i=1;i<p.length-2;i++){
+    const p0=p[i-1],p1=p[i],p2=p[i+1],p3=p[i+2];
+    ctx.bezierCurveTo(
+      p1.x+(p2.x-p0.x)/6, p1.y+(p2.y-p0.y)/6,
+      p2.x-(p3.x-p1.x)/6, p2.y-(p3.y-p1.y)/6,
+      p2.x, p2.y);
+  }
+  if(close) ctx.closePath();
+}
+
+// ==========================================================================
+// THE WHALE — vertex.mm wriggle + whaleMove.mm smile/frown/float/blowhole.
+// whaleParts.xml is lost, so the outline is redrawn to match the surviving
+// logo art: white body, thin dark outline, little fins, big friendly face.
+// ==========================================================================
+let MOUTH_EDGE = 0, BLOWHOLE = 0;   // computed from labeled anchors below
+function buildWhaleParts(){
+  const A = [   // [x, y, samples-to-next, label]  (whale local coords, faces right)
+    [-225,-30, 2],           // tail joint top
+    [-322,-108,1],           // upper fluke tip
+    [-300,-55, 1],           //   fluke inner edge
+    [-258, -2, 1],           // fluke notch (tucks back in)
+    [-302, 48, 1],           //   lower fluke inner edge
+    [-330, 98, 2],           // lower fluke tip
+    [-232, 58, 4],           // tail joint bottom
+    [-115,118, 6],           // belly rear
+    [  55,134, 6],           // belly middle (round!)
+    [ 200,112, 5],           // belly front
+    [ 272, 58, 3],           // lower jaw curve
+    [ 296,  2, 1, 'mouth'],  // MOUTH EDGE (front of face, mid height)
+    [ 290,-58, 2],           // upper lip / face front
+    [ 252,-108,2],           // forehead
+    [ 190,-134,1, 'blow'],   // BLOWHOLE (top of head)
+    [ 105,-138,5],           // back front
+    [ -65,-112,5],           // back middle
+    [-178,-62, 3],           // back rear -> tapers to tail
+  ];
+  const pts=[];
+  for(let i=0;i<A.length;i++){
+    const [x,y,n,label]=A[i], nx=A[(i+1)%A.length];
+    if(label==='mouth') MOUTH_EDGE=pts.length;
+    if(label==='blow')  BLOWHOLE=pts.length;
+    for(let s=0;s<n;s++){
+      const t=s/n;
+      pts.push({ x:x+(nx[0]-x)*t, y:y+(nx[1]-y)*t,
+                 base:{x:x+(nx[0]-x)*t, y:y+(nx[1]-y)*t},
+                 theta:Math.random()*6.28, amplitude:3, floatValue:0 });
+    }
+  }
+  return pts; // ~50 points
+}
+const whale = {
+  parts: buildWhaleParts(),
+  loc: {x:620, y:330},
+  theta:0, mouthPos:0, smileOn:false, frownOn:false,
+  particles:[], blowUntil:0,
+  update(now){
+    // letsFloat() — gentle bob
+    this.theta += (Math.PI*2)/500 * 2;
+    this.loc.yOff = Math.sin(this.theta)*20;
+    // vertex::wriggle
+    for(let i=0;i<this.parts.length;i++){
+      const p=this.parts[i];
+      p.theta += 0.02 * (i%7+1) * 0.35;
+      p.floatValue = Math.sin(p.theta)*p.amplitude;
+      p.x = p.base.x; p.y = p.base.y + p.floatValue;
+    }
+    // smile()/frown() — nudge mouth vertices, exactly as whaleMove.mm
+    const m = this.smileOn ? -1 : this.frownOn ? 1 : 0;
+    if(m!==0 && this.mouthPos<8) this.mouthPos++;
+    if(m===0) this.mouthPos = Math.max(0, this.mouthPos-1);
+    const k=this.mouthPos, ME=MOUTH_EDGE, P=this.parts;
+    P[ME].y   += m===0 ? 0 : m*k;         // cumulative-ish squash, cheap version
+    P[ME-1].y += m*k/2;  P[ME+1].y += m*k;
+    P[ME+1].x += -m*k/2; P[ME-1].x += -m*k/2;
+    // blowhole particles
+    if(now < this.blowUntil){
+      const b=P[BLOWHOLE];
+      for(let i=0;i<3;i++) this.particles.push({
+        x:this.loc.x+b.x+(Math.random()*14-7), y:this.loc.y+this.loc.yOff+b.y,
+        vx:Math.random()*1.2-0.6, vy:-(2+Math.random()*3), r:3+Math.random()*5, life:1 });
+    }
+    for(let i=this.particles.length-1;i>=0;i--){ const q=this.particles[i];
+      q.vy += 0.06 - 0.12;      // gravity vs buoyancy — bubbles rise
+      q.x+=q.vx; q.y+=q.vy; q.life-=0.015;
+      if(q.life<=0) this.particles.splice(i,1);
+    }
+  },
+  draw(pointer){
+    ctx.save();
+    ctx.translate(this.loc.x, this.loc.y + (this.loc.yOff||0));
+    // body — white with thin dark outline, like the surviving logo art
+    curveShape(this.parts, true);
+    ctx.fillStyle='#f6f8f7'; ctx.fill();
+    ctx.lineWidth=3; ctx.strokeStyle='rgb(60,60,60)'; ctx.lineJoin='round'; ctx.stroke();
+    // flipper — small paddle hanging off the belly, like the logo art
+    const flap = Math.sin(this.theta*1.5)*6;
+    ctx.save(); ctx.translate(70,62); ctx.rotate(0.55+flap*0.02);
+    ctx.beginPath(); ctx.ellipse(0,42,24,56,0.12,0,7);
+    ctx.fillStyle='#f6f8f7'; ctx.fill(); ctx.stroke();
+    ctx.restore();
+    // mouth line — low on the face, smile/frown bends the control point
+    const ME=this.parts[MOUTH_EDGE];
+    ctx.beginPath();
+    ctx.moveTo(ME.x-20, ME.y+52);
+    ctx.quadraticCurveTo(ME.x-100, ME.y+84+(this.smileOn?-22:this.frownOn?24:0), ME.x-180, ME.y+62);
+    ctx.stroke();
+    // eye — pupil follows the finger (whaleMove.mm)
+    const eye={x:ME.x-48, y:ME.y+18};
+    ctx.beginPath(); ctx.arc(eye.x,eye.y,10,0,7); ctx.fillStyle='#fff'; ctx.fill(); ctx.stroke();
+    let dx=pointer.x-(this.loc.x+eye.x), dy=pointer.y-(this.loc.y+eye.y);
+    const d=Math.hypot(dx,dy)||1; dx=dx/d*3.5; dy=dy/d*3.5;
+    ctx.beginPath(); ctx.arc(eye.x+dx,eye.y+dy,4,0,7); ctx.fillStyle='rgb(60,60,60)'; ctx.fill();
+    ctx.restore();
+    // bubbles
+    for(const q of this.particles){
+      ctx.beginPath(); ctx.arc(q.x,q.y,q.r,0,7);
+      ctx.strokeStyle=`rgba(246,248,247,${0.8*q.life})`; ctx.lineWidth=2; ctx.stroke();
+    }
+  }
+};
+
+// ==========================================================================
+// PHRASES + MELODIES — phrases verbatim from swMenu.mm. The whale-song .caf
+// files are lost; each melody is a contour (bins 0..150, SAMPLESIZE=70 as in
+// whaleSong.h) that drives both the drawn guide blob and the synth.
+// ==========================================================================
+const PHRASES = [
+  "I have a gift for you!",  "What is your favorite color?",
+  "Do you believe in ghosts?","Are you ready for bed?",
+  "Look! A carrot!",          "Can you burp really loud?",
+  "SHARK! I see a SHARK!",    "I like stars.",
+  "Do you like tacos?",       "Where is your mom?"
+];
+const ICONS  = ["🎁","🌈","👻","🛌","🥕","💨","🦈","⭐","🌮","🐳"];
+const REPLIES_OK = [
+  "A gift!? For meee?", "Blue. Obviously.", "gHoStS?! ...yes.",
+  "Five more minutes…", "CARROT!! omnomnom", "BRRRRUUUUURP. Loud enough?",
+  "AAAAH! Wait, that's my cousin.", "Me too. So shiny.",
+  "Whale tacos? Rude. (yes)", "MOOOOOM! ...she's busy."
+];
+const SAMPLESIZE = 70, THRESHOLD = 100, NUMREADINGS = 10;
+function makeMelody(seed){
+  // a few syllable humps, deterministic per phrase
+  const bins=[]; let r=seed*1234.567;
+  const rnd=()=> (r=Math.sin(r)*43758.5453, r-Math.floor(r));
+  const humps=3+Math.floor(rnd()*3);
+  const centers=[...Array(humps)].map((_,i)=>(i+0.5+rnd()*0.4-0.2)/humps);
+  const heights=centers.map(()=>40+rnd()*100);
+  for(let i=0;i<SAMPLESIZE;i++){
+    const t=i/SAMPLESIZE; let v=12;
+    centers.forEach((c,j)=>{ v=Math.max(v, heights[j]*Math.exp(-Math.pow((t-c)*humps*3.2,2))); });
+    bins.push(clamp(v,0,150));
+  }
+  return bins;
+}
+const MELODIES = PHRASES.map((_,i)=>makeMelody(i+1));
+
+// ==========================================================================
+// AUDIO — WebAudio stand-ins for the lost .caf files + ofxMaxim analyzer
+// ==========================================================================
+let AC=null, mic=null, analyser=null, fftBuf=null;
+function audio(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return AC; }
+function playWhaleSong(mel, secs=3.2){
+  try{
+  const ac=audio(), t0=ac.currentTime;
+  const o=ac.createOscillator(), g=ac.createGain(), v=ac.createOscillator(), vg=ac.createGain();
+  o.type='sine';
+  v.frequency.value=5.5; vg.gain.value=9; v.connect(vg); vg.connect(o.frequency); v.start(t0);
+  for(let i=0;i<mel.length;i++)
+    o.frequency.setValueAtTime(180+mel[i]*2.6, t0+ secs*i/mel.length);
+  g.gain.setValueAtTime(0,t0);
+  g.gain.linearRampToValueAtTime(0.25,t0+0.1);
+  g.gain.setValueAtTime(0.25,t0+secs-0.15);
+  g.gain.linearRampToValueAtTime(0,t0+secs);
+  o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0+secs);
+  v.stop(t0+secs);
+  }catch(e){}
+  return secs;
+}
+function blip(f,dur=0.09,vol=0.2,type='sine',when=0){
+  try{
+  const ac=audio(), t=ac.currentTime+when;
+  const o=ac.createOscillator(), g=ac.createGain();
+  o.type=type; o.frequency.value=f;
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+dur);
+  }catch(e){}
+}
+const sndPpput   =()=>blip(120+Math.random()*60,0.05,0.08,'square');
+const sndCorrect =()=>{ [520,660,780,1040].forEach((f,i)=>blip(f,0.25,0.12,'sine',i*0.09)); };
+const sndWrong   =()=>{ blip(160,0.5,0.15,'sawtooth'); blip(110,0.5,0.15,'sawtooth',0.02); };
+async function startMic(){
+  if(mic) return true;
+  try{
+    const ac=audio();
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    mic=ac.createMediaStreamSource(stream);
+    analyser=ac.createAnalyser(); analyser.fftSize=2048;
+    fftBuf=new Float32Array(analyser.frequencyBinCount);
+    mic.connect(analyser);
+    return true;
+  }catch(e){ return false; }
+}
+// dominant-pitch → bin 0..150, spiritually the maxiFFT/octaveAnalyzer chain
+function pitchBin(){
+  if(!analyser) return null;
+  analyser.getFloatFrequencyData(fftBuf);
+  const ac=audio(), hz=ac.sampleRate/analyser.fftSize;
+  let best=-1, bi=-1;
+  const lo=Math.floor(90/hz), hi=Math.floor(900/hz);
+  for(let i=lo;i<hi;i++) if(fftBuf[i]>best){ best=fftBuf[i]; bi=i; }
+  if(best< -65) return 0;                     // silence
+  const f=bi*hz;
+  return clamp(map(Math.log2(f), Math.log2(110), Math.log2(700), 0, 150), 0, 150);
+}
+
+// ==========================================================================
+// DORWING — the melody blobs (dorwing.mm): filled catmull blobs that wriggle
+// ==========================================================================
+function makeDorwing(color){
+  return {
+    bins:[], color, wr:0,
+    reset(){ this.bins=[]; },
+    letsGo(bin){ if(this.bins.length<SAMPLESIZE) this.bins.push(bin); },
+    draw(x0,y0){
+      if(this.bins.length<2) return;
+      this.wr+=0.15;
+      const pts=[{x:x0,y:y0}];
+      for(let i=0;i<this.bins.length;i++)
+        pts.push({x:x0+i*10, y:y0-this.bins[i]+Math.sin(this.wr+i*0.7)*3});
+      pts.push({x:x0+(this.bins.length-1)*10, y:y0});
+      curveShape(pts,true);
+      ctx.fillStyle=this.color; ctx.fill();
+    }
+  };
+}
+
+// ==========================================================================
+// THE WHEEL — swMenu.mm: drag ring of 10 icons, elastic bounce, turtle bubble
+// ==========================================================================
+const wheel = {
+  cx:130, cy:H-150, r:195, angle:0, future:0, lastX:0, dragging:false,
+  currentSong:4, lastSong:-1, poked:false,
+  itemAngle(i){ return (i/10)*Math.PI*2 + (this.angle-this.future); },
+  update(){
+    // whichever icon sits nearest the "up-right" notch is the current song
+    const target=-0.9;
+    let bestI=0,bestD=99;
+    for(let i=0;i<10;i++){
+      let d=this.itemAngle(i)%(Math.PI*2); if(d<0)d+=Math.PI*2;
+      let diff=Math.abs(d-((target%(Math.PI*2))+Math.PI*2)%(Math.PI*2));
+      diff=Math.min(diff,Math.PI*2-diff);
+      if(diff<bestD){bestD=diff;bestI=i;}
+    }
+    if(bestI!==this.currentSong){ this.currentSong=bestI; this.poked=true; sndPpput(); }
+  },
+  draw(lightVal){
+    // the wheel itself (circle.png stand-in)
+    ctx.save();
+    ctx.beginPath(); ctx.arc(this.cx,this.cy,this.r,0,7);
+    ctx.fillStyle='rgba(246,248,247,0.18)'; ctx.fill();
+    ctx.lineWidth=42; ctx.strokeStyle='rgba(246,248,247,0.25)'; ctx.stroke();
+    ctx.restore();
+    // ring of icons
+    for(let i=0;i<10;i++){
+      const a=this.itemAngle(i);
+      const x=this.cx+Math.cos(a)*this.r, y=this.cy+Math.sin(a)*this.r;
+      const cur=i===this.currentSong;
+      ctx.save(); ctx.translate(x,y);
+      ctx.beginPath(); ctx.arc(0,0,34,0,7);
+      ctx.fillStyle=cur?'#f6f8f7':'rgba(246,248,247,.55)'; ctx.fill();
+      ctx.lineWidth=2.5; ctx.strokeStyle=cur?'rgb(60,60,60)':'rgba(60,60,60,.4)'; ctx.stroke();
+      ctx.font='34px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.globalAlpha=cur?1:.6; ctx.fillText(ICONS[i],0,3);
+      ctx.restore();
+    }
+    // turtle speech bubble (images/icons/speech.png stand-in)
+    const bx=118, by=H-560;
+    ctx.save();
+    ctx.fillStyle=`rgb(255,${lightVal|0},${lightVal|0})`;
+    ctx.strokeStyle='rgb(60,60,60)'; ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.ellipse(bx,by,86,64,0,0,7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx-20,by+58); ctx.lineTo(bx-4,by+96); ctx.lineTo(bx+22,by+52);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.font='56px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(ICONS[this.currentSong],bx,by+4);
+    ctx.restore();
+  },
+  touchDown(x,y){ if(Math.hypot(x-this.cx,y-this.cy)<this.r+60){ this.dragging=true; this.lastX=x; this.lastY=y; } },
+  touchMoved(x,y){
+    if(!this.dragging) return;
+    const a1=Math.atan2(this.lastY-this.cy,this.lastX-this.cx);
+    const a2=Math.atan2(y-this.cy,x-this.cx);
+    let d=a2-a1; if(d>Math.PI)d-=Math.PI*2; if(d<-Math.PI)d+=Math.PI*2;
+    this.angle+=d; this.lastX=x; this.lastY=y;
+  },
+  touchUp(){ if(this.dragging){ this.dragging=false;
+    this.future=0.35; tween(this,'future',0,1.5,easeOutElastic); } }
+};
+
+// ==========================================================================
+// SCENES
+// ==========================================================================
+const DEMO = location.hash==='#demo';   // auto-plays the sing flow (for capture)
+let scene=['speak','intro'].includes(location.hash.slice(1)) || DEMO ? (DEMO?'speak':location.hash.slice(1)) : 'home'; // home | speak | intro
+const pointer={x:W/2,y:H/2,down:false};
+const logo=new Image(); logo.src='singWhaleLogo.png';
+
+// ---- speak scene state (speakScene.mm + whaleSong.mm flow) ---------------
+const guide   = makeDorwing('rgba(197,238,252,0.75)');
+const singing = makeDorwing('rgba(39,170,225,0.65)');
+const speak = {
+  state:'waiting',    // waiting | playing | yousing | singing | correct | wrong
+  songEndsAt:0, songStartedAt:0, songSecs:0,
+  readings:new Array(NUMREADINGS).fill(0), rIndex:0, rTotal:0,
+  bins:[], micOK:false, singPulse:1, replyUntil:0, reply:'',
+  songLocY:H,        // guide blob slides up (Tweenzor EASE_OUT_QUAD)
+  guideX:345, guideBaseY(){ return this.songLocY; },
+  begin(now){
+    // press the red button: play whale song + show guide (switchOn=true)
+    const mel=MELODIES[wheel.currentSong];
+    guide.reset(); singing.reset(); this.bins=[];
+    for(const b of mel) guide.letsGo(b);
+    this.songSecs=playWhaleSong(mel);
+    this.songStartedAt=now; this.songEndsAt=now+this.songSecs*1000;
+    this.state='playing';
+    this.songLocY=H+60; tween(this,'songLocY',H-140,1.0,easeOutQuad);
+    whale.smileOn=false; whale.frownOn=false;
+  },
+  async startSinging(now){
+    this.micOK=await startMic();
+    this.bins=[]; singing.reset();
+    this.readings.fill(0); this.rTotal=0; this.rIndex=0;
+    this.state='singing';
+  },
+  update(now){
+    wheel.update();
+    if(wheel.poked){ wheel.poked=false;
+      if(this.state!=='waiting'){ this.state='waiting'; guide.reset(); singing.reset(); }
+    }
+    this.frames=(this.frames||0)+1;
+    if(DEMO && this.state==='waiting' && this.frames>3) this.begin(now);
+    if(this.state==='playing' && (now>=this.songEndsAt || (DEMO && this.frames>8))) this.state='yousing';
+    if(DEMO && this.state==='yousing'){   // skip the mic in demo mode
+      this.micOK=false; this.bins=[]; singing.reset();
+      this.readings.fill(0); this.rTotal=0; this.rIndex=0; this.state='singing';
+    }
+    if(this.state==='singing') for(let rep=0; rep<(DEMO?SAMPLESIZE:1) && this.state==='singing'; rep++){
+      // one pitch sample per frame, smoothed over NUMREADINGS — whaleSong.mm
+      let bin = this.micOK ? pitchBin() : clamp(map(pointer.y,H-140,H-290,0,150),0,150);
+      if(DEMO) bin = MELODIES[wheel.currentSong][Math.min(this.bins.length,SAMPLESIZE-1)] + Math.sin(this.bins.length*0.4)*22;
+      if(bin==null) bin=0;
+      this.rTotal-=this.readings[this.rIndex];
+      this.readings[this.rIndex]=bin;
+      this.rTotal+=bin; this.rIndex=(this.rIndex+1)%NUMREADINGS;
+      const avg=this.rTotal/NUMREADINGS;
+      this.bins.push(avg); singing.letsGo(avg);
+      if(this.bins.length>=SAMPLESIZE-1){          // atEnd -> checkSong()
+        const mel=MELODIES[wheel.currentSong];
+        let points=0;
+        for(let i=0;i<Math.min(mel.length,this.bins.length);i++)
+          if(Math.abs(mel[i]-this.bins[i])<THRESHOLD) points++;
+        const ok = points > mel.length - mel.length/3;
+        this.state = ok?'correct':'wrong';
+        this.replyUntil=DEMO?Infinity:now+3500;
+        if(ok){ sndCorrect(); whale.smileOn=true; whale.blowUntil=now+2500;
+                this.reply=REPLIES_OK[wheel.currentSong]; }
+        else  { sndWrong();  whale.frownOn=true;
+                this.reply="Hmmm? That's not how it goes. Try again!"; }
+      }
+    }
+    if((this.state==='correct'||this.state==='wrong') && now>this.replyUntil){
+      this.state='waiting'; whale.smileOn=false; whale.frownOn=false;
+      guide.reset(); singing.reset();
+    }
+    whale.update(now);
+  },
+  draw(now){
+    drawOcean(now);
+    whale.draw(pointer);
+
+    // whale's reply in a speech bubble
+    if((this.state==='correct'||this.state==='wrong') && now<this.replyUntil)
+      speechBubble(whale.loc.x-40, whale.loc.y-210, this.reply, this.state==='wrong');
+    if(this.state==='waiting' && Math.floor(now/4000)%3===0)
+      speechBubble(whale.loc.x-40, whale.loc.y-210, "Is there anything\nyou wanted to ask?", false);
+
+    // phrase text — ofSetColor(200,75,90), guideArea (315, H-245)
+    ctx.fillStyle='rgb(200,75,90)';
+    ctx.font='bold 40px "Avenir Next", Futura, sans-serif';
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    ctx.fillText(PHRASES[wheel.currentSong], 365, H-175);
+
+    // the guide + singing blobs (translated like speakScene.mm)
+    guide.draw(this.guideX, this.songLocY);
+    singing.draw(this.guideX, this.songLocY);
+
+    // song progress wipe — ofSetColor(64,94,109) rect over the not-yet-sung part
+    if(this.state==='playing'){
+      const p=clamp((now-this.songStartedAt)/(this.songSecs*1000),0,1);
+      const gx=this.guideX, gw=(SAMPLESIZE-1)*10;
+      ctx.fillStyle='rgba(64,94,109,0.35)';
+      ctx.fillRect(gx+p*gw, H-290, gw-p*gw, 220);
+    }
+
+    // "SING!" flashing prompt (tweened singWordSize in the original)
+    if(this.state==='yousing'){
+      const s=0.85+0.15*Math.sin(now/180);
+      ctx.save(); ctx.translate(700,H-105); ctx.scale(s,s);
+      ctx.fillStyle='rgb(232,58,37)';
+      ctx.font='bold 54px "Avenir Next", Futura, sans-serif'; ctx.textAlign='center';
+      ctx.fillText('SING!',0,0); ctx.restore();
+    }
+    if(this.state==='singing'){
+      ctx.fillStyle='rgb(232,58,37)';
+      ctx.font='bold 22px "Avenir Next", Futura, sans-serif'; ctx.textAlign='left';
+      ctx.fillText(this.micOK?'●  listening…':'no mic — hum with the mouse (up = high)!', 365, H-60);
+    }
+
+    // the big red button (startSingingButt) — the hub of the wheel
+    const bp = pointer.down && inBtn(pointer.x,pointer.y);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(wheel.cx,wheel.cy,72,0,7);
+    ctx.fillStyle=bp?'rgb(180,44,28)':'rgb(232,58,37)'; ctx.fill();
+    ctx.lineWidth=4; ctx.strokeStyle='rgb(60,60,60)'; ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font='bold 22px "Avenir Next", Futura, sans-serif';
+    const lbl = this.state==='waiting' ? '▶\nPLAY' :
+                this.state==='playing' ? '♪ ♪' :
+                this.state==='yousing' ? '🎤\nSING' :
+                this.state==='singing' ? '●\nREC' : '▶\nAGAIN';
+    lbl.split('\n').forEach((l,i,arr)=>ctx.fillText(l,wheel.cx,wheel.cy-(arr.length-1)*14+i*28));
+    ctx.restore();
+
+    wheel.draw( (this.state==='yousing') ? 100+155*(0.5+0.5*Math.sin(now/180)) : 255 );
+    backArrow();
+  },
+  press(now){
+    // startSingingButt logic from speakScene::touchUp
+    if(this.state==='waiting')      this.begin(now);
+    else if(this.state==='playing') { /* patience, whale is singing */ }
+    else if(this.state==='yousing') this.startSinging(now);
+    else if(this.state==='singing') this.state='yousing';
+    else this.begin(now);
+  }
+};
+function inBtn(x,y){ return Math.hypot(x-wheel.cx,y-wheel.cy)<72; }
+
+// ---- shared drawing helpers ----------------------------------------------
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function speechBubble(x,y,text,upset){
+  const lines=text.split('\n');
+  ctx.save();
+  ctx.font='bold 24px "Avenir Next", Futura, sans-serif';
+  const w=Math.max(...lines.map(l=>ctx.measureText(l).width))+50;
+  const h=lines.length*30+34;
+  roundRect(x-w/2,y-h/2,w,h,20);
+  ctx.fillStyle=upset?'#ffe3de':'#f6f8f7'; ctx.fill();
+  ctx.lineWidth=3; ctx.strokeStyle='rgb(60,60,60)'; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x-14,y+h/2-2); ctx.lineTo(x+4,y+h/2+30); ctx.lineTo(x+26,y+h/2-2);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='rgb(60,60,60)'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  lines.forEach((l,i)=>ctx.fillText(l,x,y-h/2+28+i*30));
+  ctx.restore();
+}
+let bgBubbles=[...Array(14)].map(()=>({x:Math.random()*W,y:Math.random()*H,r:2+Math.random()*5,s:0.2+Math.random()*0.5}));
+function drawOcean(now){
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#79b4d8'); g.addColorStop(0.6,'#65a5cd'); g.addColorStop(1,'#4f8fbc');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // light rays
+  ctx.save(); ctx.globalAlpha=0.07; ctx.fillStyle='#fff';
+  for(let i=0;i<4;i++){
+    const x=180+i*230+Math.sin(now/3000+i)*30;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x+120,0); ctx.lineTo(x+40,H); ctx.lineTo(x-40,H);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  for(const b of bgBubbles){
+    b.y-=b.s; if(b.y<-10){b.y=H+10;b.x=Math.random()*W;}
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7);
+    ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1.5; ctx.stroke();
+  }
+}
+function backArrow(){
+  ctx.save();
+  ctx.font='bold 17px "Avenir Next", Futura, sans-serif';
+  ctx.fillStyle='rgba(246,248,247,0.85)'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('◀ HOME', 24, 20);
+  ctx.restore();
+}
+
+// ---- home scene (homeScene.mm: title + INTRO / SPEAK TO WHALE) ------------
+function drawHome(now){
+  // flat rgb(118,184,216) — the exact baked-in bg of the surviving logo PNG
+  ctx.fillStyle='rgb(118,184,216)'; ctx.fillRect(0,0,W,H);
+  for(const b of bgBubbles){
+    b.y-=b.s; if(b.y<-10){b.y=H+10;b.x=Math.random()*W;}
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7);
+    ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1.5; ctx.stroke();
+  }
+  if(logo.complete){
+    // the one surviving asset — singWhaleLogo.png
+    const s=1.15, lw=320*s, lh=480*s;
+    ctx.save(); ctx.globalCompositeOperation='multiply'; ctx.globalAlpha=0.001; ctx.restore();
+    ctx.drawImage(logo, W/2-lw/2, H/2-lh/2-40+Math.sin(now/900)*8, lw, lh);
+  }
+  ctx.fillStyle='rgb(60,60,60)';
+  ctx.font='bold 64px "Avenir Next", Futura, sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  ctx.fillText('sing whale', W/2, 110);
+  ctx.font='20px "Avenir Next", Futura, sans-serif';
+  ctx.fillStyle='rgba(60,60,60,0.7)';
+  ctx.fillText('an interspecies karaoke machine · 2012', W/2, 145);
+  // buttons at W/4 and W/2, H - H/3  (homeScene.mm)
+  homeBtn('INTRO', W/4, H-H/3);
+  homeBtn('SPEAK TO\nWHALE', W/2, H-H/3);
+}
+function homeBtn(label,x,y){
+  const hov = Math.abs(pointer.x-x)<95 && Math.abs(pointer.y-(y+30))<50;
+  ctx.save();
+  roundRect(x-95,y-20,190,100,16);
+  ctx.fillStyle=hov?'rgb(232,58,37)':'rgba(246,248,247,0.92)'; ctx.fill();
+  ctx.lineWidth=3; ctx.strokeStyle='rgb(60,60,60)'; ctx.stroke();
+  ctx.fillStyle=hov?'#fff':'rgb(60,60,60)';
+  ctx.font='bold 24px "Avenir Next", Futura, sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const lines=label.split('\n');
+  lines.forEach((l,i)=>ctx.fillText(l,x,y+30+(i-(lines.length-1)/2)*28));
+  ctx.restore();
+}
+
+// ---- intro scene (callScene: Layla's story — original art lost) -----------
+const INTRO=[
+  "This is the story of Layla.",
+  "Layla is a little whale who lives in a big ocean.",
+  "One day she heard a strange song from above the waves…",
+  "It was YOU. And she's been trying to talk to you ever since.",
+  "Whales speak in melodies. To answer her,\nyou must SING her language back to her.",
+  "(The original hand-drawn story art from 2012 was lost —\nbut Layla is still here. Go say hi.)"
+];
+let introPage=0;
+function drawIntro(now){
+  drawOcean(now);
+  const oy=whale.loc.y; whale.loc.y=470;      // swim lower, under the story card
+  whale.update(now); whale.draw(pointer);
+  whale.loc.y=oy;
+  ctx.fillStyle='rgba(246,248,247,1)';
+  roundRect(122,120,780,190,24); ctx.fill();
+  ctx.lineWidth=3; ctx.strokeStyle='rgb(60,60,60)'; ctx.stroke();
+  ctx.fillStyle='rgb(60,60,60)';
+  ctx.font='26px Georgia, serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  INTRO[introPage].split('\n').forEach((l,i)=>ctx.fillText(l,W/2,195+i*36-(INTRO[introPage].includes('\n')?18:0)));
+  ctx.font='bold 20px "Avenir Next", Futura, sans-serif';
+  ctx.fillStyle='rgb(200,75,90)';
+  ctx.fillText(introPage<INTRO.length-1 ? 'tap to continue ▶' : 'tap to meet Layla ♪', W/2, 280);
+  backArrow();
+}
+
+// ==========================================================================
+// INPUT
+// ==========================================================================
+function canvasXY(e){
+  const r=cv.getBoundingClientRect();
+  const t=e.touches?e.touches[0]:e;
+  return { x:(t.clientX-r.left)*W/r.width, y:(t.clientY-r.top)*H/r.height };
+}
+function onDown(e){
+  const {x,y}=canvasXY(e); pointer.x=x; pointer.y=y; pointer.down=true;
+  audio().resume && audio().resume();
+  const now=performance.now();
+  if(scene==='home'){
+    if(Math.abs(x-W/4)<95&&Math.abs(y-(H-H/3+30))<50){ scene='intro'; introPage=0; }
+    if(Math.abs(x-W/2)<95&&Math.abs(y-(H-H/3+30))<50){ scene='speak'; speak.state='waiting'; }
+  } else if(scene==='intro'){
+    if(x<130&&y<50){ scene='home'; return; }
+    if(introPage<INTRO.length-1) introPage++; else { scene='speak'; speak.state='waiting'; }
+  } else if(scene==='speak'){
+    if(x<130&&y<50){ scene='home'; return; }
+    if(inBtn(x,y)) speak.press(now);
+    else wheel.touchDown(x,y);
+  }
+  e.preventDefault();
+}
+function onMove(e){ const p=canvasXY(e); pointer.x=p.x; pointer.y=p.y;
+  if(scene==='speak') wheel.touchMoved(p.x,p.y); e.preventDefault(); }
+function onUp(){ pointer.down=false; wheel.touchUp(); }
+cv.addEventListener('mousedown',onDown); cv.addEventListener('mousemove',onMove);
+addEventListener('mouseup',onUp);
+cv.addEventListener('touchstart',onDown,{passive:false});
+cv.addEventListener('touchmove',onMove,{passive:false});
+addEventListener('touchend',onUp);
+
+// ==========================================================================
+// MAIN LOOP
+// ==========================================================================
+let last=performance.now();
+function frame(now){
+  const dt=(now-last)/1000; last=now;
+  stepTweens(dt);
+  if(DEMO) document.title = `${scene}:${speak.state}:${speak.frames||0}:${speak.bins.length}`;
+  ctx.clearRect(0,0,W,H);
+  if(scene==='home') drawHome(now);
+  else if(scene==='intro') drawIntro(now);
+  else { speak.update(now); speak.draw(now); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
