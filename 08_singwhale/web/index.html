@@ -64,6 +64,126 @@ function stepTweens(dt){
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const map=(v,a,b,c,d)=>c+(d-c)*((v-a)/(b-a));
 
+// ---- the ink (Jean Jullien-ish: thick warm black, flat fills) ------------
+const INK='#33322c';
+const FLAT={ red:'#e83a25', yellow:'#f2c94c', orange:'#ef8a2b', green:'#6fae4e',
+             cream:'#f6f4ea', pink:'#f2a0a0', grey:'#8fa3ad' };
+function inkStyle(w=4){ ctx.lineWidth=w; ctx.strokeStyle=INK;
+  ctx.lineJoin='round'; ctx.lineCap='round'; }
+function dotEyes(x1,x2,y,r=2.6){ ctx.fillStyle=INK;
+  ctx.beginPath(); ctx.arc(x1,y,r,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(x2,y,r,0,7); ctx.fill(); }
+function smileAt(x,y,r=6){ ctx.beginPath(); ctx.arc(x,y,r,0.25,Math.PI-0.25);
+  inkStyle(2.5); ctx.stroke(); }
+// hand-drawn props, each centered at 0,0 in a ±30 box — used by the wheel,
+// the speech bubble, and the story vignettes (the emoji are retired)
+function drawProp(i){
+  ctx.save();
+  switch(i){
+    case 0: // gift
+      inkStyle(4);
+      ctx.fillStyle=FLAT.red; ctx.beginPath(); ctx.rect(-22,-12,44,34);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle=FLAT.yellow; ctx.fillRect(-5,-12,10,34);
+      ctx.strokeRect(-5,-12,10,34);
+      ctx.beginPath(); ctx.arc(-8,-18,7,0,7); ctx.moveTo(15,-18);
+      ctx.arc(8,-18,7,0,7); ctx.stroke();
+      break;
+    case 1: // rainbow
+      for(const [r,c] of [[26,FLAT.red],[19,FLAT.yellow],[12,FLAT.green]]){
+        ctx.beginPath(); ctx.arc(0,12,r,Math.PI,0);
+        ctx.lineWidth=7; ctx.strokeStyle=c; ctx.lineCap='round'; ctx.stroke();
+      }
+      inkStyle(3); ctx.beginPath(); ctx.arc(0,12,29.5,Math.PI,0); ctx.stroke();
+      break;
+    case 2: // ghost
+      inkStyle(4); ctx.fillStyle=FLAT.cream;
+      ctx.beginPath(); ctx.arc(0,-6,20,Math.PI,0);
+      ctx.lineTo(20,18);
+      for(let k=0;k<4;k++) ctx.quadraticCurveTo(15-k*10,10+(k%2)*8,10-k*10,18);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      dotEyes(-7,5,-6,3);
+      ctx.beginPath(); ctx.arc(-1,4,4,0,7); ctx.fillStyle=INK; ctx.fill(); // "oooo"
+      break;
+    case 3: // sleep: crescent moon + zzz
+      inkStyle(4); ctx.fillStyle=FLAT.yellow;
+      ctx.beginPath(); ctx.arc(-4,0,20,0.6,5.7);
+      ctx.quadraticCurveTo(6,-10,4,-19.2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle=INK; ctx.font='bold 15px "Avenir Next", Futura, sans-serif';
+      ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillText('z',14,-14); ctx.fillText('Z',20,-24);
+      break;
+    case 4: // carrot
+      ctx.rotate(0.5); inkStyle(4); ctx.fillStyle=FLAT.orange;
+      ctx.beginPath(); ctx.moveTo(-9,-16); ctx.quadraticCurveTo(0,-22,9,-16);
+      ctx.quadraticCurveTo(6,8,0,24); ctx.quadraticCurveTo(-6,8,-9,-16);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-4,-2); ctx.lineTo(3,0); ctx.moveTo(-3,8); ctx.lineTo(3,9);
+      inkStyle(2); ctx.stroke();
+      inkStyle(3.5); ctx.fillStyle=FLAT.green;
+      for(const a of [-0.5,0,0.5]){
+        ctx.beginPath(); ctx.ellipse(a*10,-25,4,9,a*0.7,0,7); ctx.fill(); ctx.stroke();
+      }
+      break;
+    case 5: // burp cloud
+      inkStyle(4); ctx.fillStyle=FLAT.cream;
+      ctx.beginPath();
+      ctx.arc(-12,2,11,1.6,4.6); ctx.arc(-2,-9,11,3.4,6.1);
+      ctx.arc(12,0,11,4.3,1.2); ctx.arc(2,10,11,0.4,2.6);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=INK; ctx.font='bold 13px "Avenir Next", Futura, sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('BRP!',0,1);
+      break;
+    case 6: // shark
+      inkStyle(4); ctx.fillStyle=FLAT.grey;
+      ctx.beginPath(); ctx.moveTo(-28,4);                     // faces LEFT
+      ctx.quadraticCurveTo(-6,-12,14,-6);
+      ctx.lineTo(8,-22); ctx.lineTo(22,-8);                   // dorsal fin
+      ctx.quadraticCurveTo(30,-4,28,2);
+      ctx.lineTo(30,12); ctx.lineTo(20,8);                    // tail nick
+      ctx.quadraticCurveTo(-4,16,-28,4);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=INK; ctx.beginPath(); ctx.arc(-18,0,2.6,0,7); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-26,7); ctx.lineTo(-21,5.5); ctx.lineTo(-16,7.5);
+      inkStyle(2.5); ctx.stroke();                            // toothy grin hint
+      break;
+    case 7: // star with a face
+      inkStyle(4); ctx.fillStyle=FLAT.yellow;
+      ctx.beginPath();
+      for(let k=0;k<10;k++){ const r=k%2?11:26, a=-Math.PI/2+k*Math.PI/5;
+        ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r); }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      dotEyes(-5,5,-1); smileAt(0,2,5);
+      break;
+    case 8: // taco
+      inkStyle(4);
+      ctx.fillStyle=FLAT.green; ctx.beginPath(); ctx.arc(0,4,22,Math.PI,0);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      for(let k=-2;k<=2;k++){ ctx.fillStyle=k%2?FLAT.red:FLAT.green;
+        ctx.beginPath(); ctx.arc(k*9,-14+Math.abs(k)*4,5,0,7); ctx.fill(); ctx.stroke(); }
+      ctx.fillStyle=FLAT.yellow; ctx.beginPath(); ctx.arc(0,4,22,Math.PI*0.98,Math.PI*0.02,false);
+      ctx.arc(0,4,13,0,Math.PI,true); ctx.closePath(); ctx.fill(); inkStyle(3.5); ctx.stroke();
+      break;
+    case 9: // little mom whale, spouting
+      inkStyle(4); ctx.fillStyle=FLAT.cream;
+      ctx.beginPath(); ctx.moveTo(-24,6);
+      ctx.quadraticCurveTo(-14,-14,6,-12);
+      ctx.quadraticCurveTo(24,-10,24,2);
+      ctx.quadraticCurveTo(24,12,4,13);
+      ctx.quadraticCurveTo(-14,14,-18,10);
+      ctx.lineTo(-27,16); ctx.lineTo(-25,4); ctx.lineTo(-30,-4); ctx.lineTo(-19,2);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=INK; ctx.beginPath(); ctx.arc(16,-3,2.4,0,7); ctx.fill();
+      inkStyle(2.5); ctx.beginPath();
+      ctx.moveTo(4,-13); ctx.quadraticCurveTo(2,-22,-4,-24);
+      ctx.moveTo(4,-13); ctx.quadraticCurveTo(6,-22,12,-24);
+      ctx.stroke();
+      break;
+  }
+  ctx.restore();
+}
+
 // ---- ofCurveVertex (Catmull-Rom) -----------------------------------------
 function curveShape(pts, close){
   // openFrameworks duplicates first/last points; same trick here
@@ -164,7 +284,7 @@ const whale = {
     // body — white with thin dark outline, like the surviving logo art
     curveShape(this.parts, true);
     ctx.fillStyle='#f6f8f7'; ctx.fill();
-    ctx.lineWidth=3; ctx.strokeStyle='rgb(60,60,60)'; ctx.lineJoin='round'; ctx.stroke();
+    ctx.lineWidth=6.5; ctx.strokeStyle=INK; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.stroke();
     // throat pleats — the thin line details the logo whale has
     ctx.save(); ctx.clip();
     ctx.lineWidth=1.5; ctx.strokeStyle='rgba(60,60,60,0.28)';
@@ -179,10 +299,11 @@ const whale = {
     const flap = Math.sin(this.theta*1.5)*6;
     ctx.save(); ctx.translate(70,62); ctx.rotate(0.55+flap*0.02);
     ctx.beginPath(); ctx.ellipse(0,42,24,56,0.12,0,7);
-    ctx.fillStyle='#f6f8f7'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#f6f8f7'; ctx.fill(); ctx.lineWidth=5.5; ctx.stroke();
     ctx.restore();
     // mouth line — low on the face, smile/frown bends the control point
     const ME=this.parts[MOUTH_EDGE];
+    ctx.lineWidth=5;
     ctx.beginPath();
     ctx.moveTo(ME.x-20, ME.y+52);
     ctx.quadraticCurveTo(ME.x-100, ME.y+84+(this.smileOn?-22:this.frownOn?24:0), ME.x-180, ME.y+62);
@@ -197,7 +318,7 @@ const whale = {
       ctx.beginPath(); ctx.arc(eye.x,eye.y,10,0,7); ctx.fillStyle='#fff'; ctx.fill(); ctx.stroke();
       let dx=pointer.x-(this.loc.x+eye.x), dy=pointer.y-(this.loc.y+eye.y);
       const d=Math.hypot(dx,dy)||1; dx=dx/d*3.5; dy=dy/d*3.5;
-      ctx.beginPath(); ctx.arc(eye.x+dx,eye.y+dy,4,0,7); ctx.fillStyle='rgb(60,60,60)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(eye.x+dx,eye.y+dy,4,0,7); ctx.fillStyle=INK; ctx.fill();
     }
     ctx.restore();
     // bubbles
@@ -445,9 +566,8 @@ const wheel = {
       ctx.save(); ctx.translate(x,y);
       ctx.beginPath(); ctx.arc(0,0,34,0,7);
       ctx.fillStyle=cur?'#f6f8f7':'rgba(246,248,247,.55)'; ctx.fill();
-      ctx.lineWidth=2.5; ctx.strokeStyle=cur?'rgb(60,60,60)':'rgba(60,60,60,.4)'; ctx.stroke();
-      ctx.font='34px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.globalAlpha=cur?1:.6; ctx.fillText(ICONS[i],0,3);
+      ctx.lineWidth=2.5; ctx.strokeStyle=cur?INK:'rgba(60,60,60,.4)'; ctx.stroke();
+      ctx.globalAlpha=cur?1:.55; ctx.scale(0.72,0.72); drawProp(i);
       ctx.restore();
     }
     // notch pointer — marks where an icon locks in
@@ -455,19 +575,19 @@ const wheel = {
       ctx.save(); ctx.translate(px,py); ctx.rotate(a+Math.PI/2);
       ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-9,-16); ctx.lineTo(9,-16); ctx.closePath();
       ctx.fillStyle='#f6f8f7'; ctx.fill();
-      ctx.lineWidth=2.5; ctx.strokeStyle='rgb(60,60,60)'; ctx.lineJoin='round'; ctx.stroke();
+      ctx.lineWidth=2.5; ctx.strokeStyle=INK; ctx.lineJoin='round'; ctx.stroke();
       ctx.restore(); }
     // turtle speech bubble (images/icons/speech.png stand-in)
     const bx=118, by=H-560;
     ctx.save();
     ctx.fillStyle=`rgb(255,${lightVal|0},${lightVal|0})`;
-    ctx.strokeStyle='rgb(60,60,60)'; ctx.lineWidth=3;
+    ctx.strokeStyle=INK; ctx.lineWidth=3;
     ctx.beginPath();
     ctx.ellipse(bx,by,86,64,0,0,7); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(bx-20,by+58); ctx.lineTo(bx-4,by+96); ctx.lineTo(bx+22,by+52);
     ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.font='56px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(ICONS[this.currentSong],bx,by+4);
+    ctx.save(); ctx.translate(bx,by+2); ctx.scale(1.25,1.25);
+    drawProp(this.currentSong); ctx.restore();
     ctx.restore();
   },
   touchDown(x,y){ if(Math.hypot(x-this.cx,y-this.cy)<this.r+60){ this.dragging=true; this.lastX=x; this.lastY=y; } },
@@ -655,7 +775,7 @@ const speak = {
     ctx.save();
     ctx.beginPath(); ctx.arc(wheel.cx,wheel.cy,72,0,7);
     ctx.fillStyle=bp?'rgb(180,44,28)':'rgb(232,58,37)'; ctx.fill();
-    ctx.lineWidth=4; ctx.strokeStyle='rgb(60,60,60)'; ctx.stroke();
+    ctx.lineWidth=4; ctx.strokeStyle=INK; ctx.stroke();
     ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.font='bold 22px "Avenir Next", Futura, sans-serif';
     const lbl = this.state==='waiting' ? '▶\nPLAY' :
@@ -674,8 +794,8 @@ const speak = {
       const tw=ctx.measureText(this.toast.msg).width+56;
       roundRect(W/2-tw/2, 58, tw, 46, 23);
       ctx.fillStyle='rgba(246,248,247,0.95)'; ctx.fill();
-      ctx.lineWidth=2.5; ctx.strokeStyle='rgb(60,60,60)'; ctx.stroke();
-      ctx.fillStyle='rgb(60,60,60)'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.lineWidth=2.5; ctx.strokeStyle=INK; ctx.stroke();
+      ctx.fillStyle=INK; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(this.toast.msg, W/2, 82);
       ctx.restore();
     }
@@ -686,43 +806,75 @@ const speak = {
     if(ok){ sndCorrect(); whale.smileOn=true; whale.blowUntil=now+2500;
             this.reply=REPLIES_OK[wheel.currentSong];
             const i=wheel.currentSong;
-            this.vignette={ icon:ICONS[i], t0:now,
-                            mode:[0,4,8].includes(i)?'eat':'float' }; }
+            const mode = i===6?'shark' : i===7?'stars' : i===9?'mom' :
+                         [0,4,8].includes(i)?'eat' : 'float';
+            if(mode==='mom'){ this.replyUntil=DEMO?Infinity:now+4500;
+                              whaleGlide(140,200,1.4,0.2,0.8); }   // a deep hello
+            this.vignette={ prop:i, t0:now, mode }; }
     else  { sndWrong();  whale.frownOn=true; this.vignette=null;
             this.reply=REPLIES_WRONG[Math.floor(Math.random()*REPLIES_WRONG.length)]; }
   },
-  // little payoff scene: the phrase's icon comes to life near the whale
+  // little payoff scene: the phrase's prop comes to life near the whale.
+  // shark / stars / mom are reconstructions of the lost 2012 story scenes
+  // (songSix loop, songSeven random jellies, songNine's giant sliding mom).
   drawVignette(now){
     if(!this.vignette) return;
-    const v=this.vignette, t=(now-v.t0)/1000;
+    const v=this.vignette; let t=(now-v.t0)/1000;
+    const DURS={eat:2.0,shark:3.2,stars:3.4,mom:4.4,float:3.0};
+    if(DEMO) t=(t+2.2)%(DURS[v.mode]||3);   // loop, offset to mid-scene (headless capture)
     const ME=whale.parts[MOUTH_EDGE];
     const mouth={x:whale.loc.x+ME.x-40, y:whale.loc.y+(whale.loc.yOff||0)+ME.y+40};
-    ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.save();
     if(v.mode==='eat'){                        // drifts into the mouth, gulp
       const dur=1.9;
       if(t>dur+0.1){ this.vignette=null; ctx.restore(); return; }
       const p=easeInOutQuad(clamp(t/dur,0,1));
       const x0=W-120, y0=140;
       const x=x0+(mouth.x-x0)*p, y=y0+(mouth.y-y0)*p+Math.sin(t*6)*8*(1-p);
-      const s=1-0.75*Math.pow(p,3);
+      const s=1.2*(1-0.75*Math.pow(p,3));
       if(p>=1 && !v.gulped){                    // gulp bubbles, once
         v.gulped=true;
         for(let i=0;i<6;i++) whale.particles.push({
           x:mouth.x+(Math.random()*30-15), y:mouth.y+(Math.random()*20-10),
           vx:Math.random()*1-0.5, vy:-(1+Math.random()*2), r:2+Math.random()*4, life:1 });
       }
-      ctx.font=`${Math.round(64*s)}px serif`;
       ctx.globalAlpha=clamp(1.2-p,0,1);
-      ctx.fillText(v.icon, x, y);
+      ctx.translate(x,y); ctx.scale(s,s); ctx.rotate(Math.sin(t*5)*0.12*(1-p));
+      drawProp(v.prop);
+    } else if(v.mode==='shark'){                // songSix: the panic that loops
+      const dur=3.2;
+      if(t>dur){ this.vignette=null; ctx.restore(); return; }
+      const p=t/dur;                            // right to left, dips like a prowler
+      const x=W+80-(W+240)*p, y=150+Math.sin(t*3)*18;
+      ctx.translate(x,y); ctx.scale(2.1,2.1); drawProp(6);
+      ctx.restore(); ctx.save();                // wake line behind the fin
+      inkStyle(2.5); ctx.globalAlpha=0.4;
+      ctx.beginPath(); ctx.moveTo(x+60,y-8);
+      ctx.quadraticCurveTo(x+110,y-14+Math.sin(t*8)*4,x+170,y-8); ctx.stroke();
+    } else if(v.mode==='stars'){                // songSeven: jellies = sea stars
+      const dur=3.4;
+      if(t>dur){ this.vignette=null; ctx.restore(); return; }
+      const p=t/dur, fade=p<0.2?p/0.2:p>0.75?(1-p)/0.25:1;
+      for(let k=0;k<7;k++){                     // deterministic "random" scatter
+        const sx=((k*467)%W)*0.9+50, sy=((k*271)%420)+60, ss=0.7+((k*97)%50)/50;
+        ctx.save(); ctx.globalAlpha=fade*(0.5+0.5*Math.sin(now/300+k*2));
+        ctx.translate(sx,sy); ctx.scale(ss,ss); drawProp(7); ctx.restore();
+      }
+    } else if(v.mode==='mom'){                  // songNine: MOM ARRIVES, 3x scale
+      const dur=4.4;
+      if(t>dur){ this.vignette=null; ctx.restore(); return; }
+      const p=easeOutQuad(clamp(t/dur*1.15,0,1));
+      const x=-700+(W*0.34+700)*p, y=150+Math.sin(t*1.4)*12;
+      ctx.save(); ctx.translate(x,y); ctx.scale(7,7); ctx.globalAlpha=0.96;
+      drawProp(9); ctx.restore();
     } else {                                    // floats past, says hello, fades
       const dur=3.0;
       if(t>dur){ this.vignette=null; ctx.restore(); return; }
       const p=t/dur;
       const x=W-80-(W*0.45)*easeOutQuad(p);
       const y=170+Math.sin(t*2.4)*22;
-      ctx.font='72px serif';
       ctx.globalAlpha=p<0.15 ? p/0.15 : p>0.75 ? (1-p)/0.25 : 1;
-      ctx.fillText(v.icon, x, y);
+      ctx.translate(x,y); ctx.scale(1.35,1.35); drawProp(v.prop);
     }
     ctx.restore();
   },
@@ -764,10 +916,10 @@ function speechBubble(x,y,text,upset){
   const h=lines.length*30+34;
   roundRect(x-w/2,y-h/2,w,h,20);
   ctx.fillStyle=upset?'#ffe3de':'#f6f8f7'; ctx.fill();
-  ctx.lineWidth=3; ctx.strokeStyle='rgb(60,60,60)'; ctx.stroke();
+  ctx.lineWidth=3; ctx.strokeStyle=INK; ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x-14,y+h/2-2); ctx.lineTo(x+4,y+h/2+30); ctx.lineTo(x+26,y+h/2-2);
   ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle='rgb(60,60,60)'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle=INK; ctx.textAlign='center'; ctx.textBaseline='middle';
   lines.forEach((l,i)=>ctx.fillText(l,x,y-h/2+28+i*30));
   ctx.restore();
 }
@@ -841,7 +993,7 @@ function drawHome(now){
     ctx.save(); ctx.globalCompositeOperation='multiply'; ctx.globalAlpha=0.001; ctx.restore();
     ctx.drawImage(logo, W/2-lw/2, H/2-lh/2-40+Math.sin(now/900)*8, lw, lh);
   }
-  ctx.fillStyle='rgb(60,60,60)';
+  ctx.fillStyle=INK;
   ctx.font='bold 64px "Avenir Next", Futura, sans-serif';
   ctx.textAlign='center'; ctx.textBaseline='alphabetic';
   ctx.fillText('sing whale', W/2, 110);
@@ -857,8 +1009,8 @@ function homeBtn(label,x,y){
   ctx.save();
   roundRect(x-95,y-20,190,100,16);
   ctx.fillStyle=hov?'rgb(232,58,37)':'rgba(246,248,247,0.92)'; ctx.fill();
-  ctx.lineWidth=3; ctx.strokeStyle='rgb(60,60,60)'; ctx.stroke();
-  ctx.fillStyle=hov?'#fff':'rgb(60,60,60)';
+  ctx.lineWidth=3; ctx.strokeStyle=INK; ctx.stroke();
+  ctx.fillStyle=hov?'#fff':INK;
   ctx.font='bold 24px "Avenir Next", Futura, sans-serif';
   ctx.textAlign='center'; ctx.textBaseline='middle';
   const lines=label.split('\n');
@@ -883,8 +1035,8 @@ function drawIntro(now){
   whale.loc.y=oy;
   ctx.fillStyle='rgba(246,248,247,1)';
   roundRect(122,120,780,190,24); ctx.fill();
-  ctx.lineWidth=3; ctx.strokeStyle='rgb(60,60,60)'; ctx.stroke();
-  ctx.fillStyle='rgb(60,60,60)';
+  ctx.lineWidth=3; ctx.strokeStyle=INK; ctx.stroke();
+  ctx.fillStyle=INK;
   ctx.font='26px Georgia, serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
   INTRO[introPage].split('\n').forEach((l,i)=>ctx.fillText(l,W/2,195+i*36-(INTRO[introPage].includes('\n')?18:0)));
   ctx.font='bold 20px "Avenir Next", Futura, sans-serif';
