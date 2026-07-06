@@ -211,7 +211,14 @@ const REPLIES_OK = [
   "AAAAH! Wait, that's my cousin.", "Me too. So shiny.",
   "Whale tacos? Rude. (yes)", "MOOOOOM! ...she's busy."
 ];
-const SAMPLESIZE = 70, THRESHOLD = 100, NUMREADINGS = 10;
+const SAMPLESIZE = 70, NUMREADINGS = 5;  // 2012 used 10 readings; 5 lags less
+// the live singing gets a moving average, so the guide must get the identical
+// treatment before comparing — otherwise the filter itself fails the singer
+function movingAvg(a, k=NUMREADINGS){
+  const out=[], rd=new Array(k).fill(a[0]||0); let tot=(a[0]||0)*k, ri=0;
+  for(let i=0;i<a.length;i++){ tot-=rd[ri]; rd[ri]=a[i]; tot+=a[i]; ri=(ri+1)%k; out.push(tot/k); }
+  return out;
+}
 function makeMelody(seed){
   // a few syllable humps, deterministic per phrase
   const bins=[]; let r=seed*1234.567;
@@ -269,22 +276,56 @@ async function startMic(){
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
     mic=ac.createMediaStreamSource(stream);
     analyser=ac.createAnalyser(); analyser.fftSize=2048;
-    fftBuf=new Float32Array(analyser.frequencyBinCount);
+    fftBuf=new Float32Array(analyser.fftSize);
     mic.connect(analyser);
     return true;
   }catch(e){ return false; }
 }
-// dominant-pitch → bin 0..150, spiritually the maxiFFT/octaveAnalyzer chain
-function pitchBin(){
+// autocorrelation pitch tracker (replaces the 2012 FFT-peak approach, which
+// loved jumping to harmonics). Returns Hz, or null on silence.
+function detectPitch(){
   if(!analyser) return null;
-  analyser.getFloatFrequencyData(fftBuf);
-  const ac=audio(), hz=ac.sampleRate/analyser.fftSize;
-  let best=-1, bi=-1;
-  const lo=Math.floor(90/hz), hi=Math.floor(900/hz);
-  for(let i=lo;i<hi;i++) if(fftBuf[i]>best){ best=fftBuf[i]; bi=i; }
-  if(best< -65) return 0;                     // silence
-  const f=bi*hz;
-  return clamp(map(Math.log2(f), Math.log2(110), Math.log2(700), 0, 150), 0, 150);
+  analyser.getFloatTimeDomainData(fftBuf);
+  const buf=fftBuf, n=buf.length, sr=audio().sampleRate;
+  let rms=0; for(let i=0;i<n;i++) rms+=buf[i]*buf[i];
+  if(Math.sqrt(rms/n) < 0.015) return null;              // silence gate
+  const minLag=Math.floor(sr/800), maxLag=Math.floor(sr/80);
+  let bestLag=-1, bestVal=0;
+  for(let lag=minLag; lag<=maxLag; lag++){
+    let sum=0, norm=0;
+    for(let i=0;i<n-lag;i++){ sum+=buf[i]*buf[i+lag]; norm+=buf[i]*buf[i]+buf[i+lag]*buf[i+lag]; }
+    const val=2*sum/(norm||1);
+    if(val>bestVal){ bestVal=val; bestLag=lag; }
+  }
+  if(bestVal<0.5 || bestLag<0) return null;              // not periodic enough
+  return sr/bestLag;
+}
+// pitch → bin 0..150 (same scale the melodies live on); null = unvoiced
+let lastBin=null;
+function pitchBin(){
+  const f=detectPitch();
+  if(f==null) return null;
+  lastBin = clamp(map(Math.log2(f), Math.log2(110), Math.log2(700), 0, 150), 0, 150);
+  return lastBin;
+}
+// transposition-invariant contour match: mean-center both melodies so singing
+// in YOUR register counts. Pass needs shape agreement (Pearson r — a monotone
+// drone has no shape and fails on its own) AND a majority of samples in the
+// window (the descendant of 2012's 2/3 rule).
+function scoreContours(guideBins, sungBins){
+  const n=Math.min(guideBins.length, sungBins.length);
+  if(n<8) return {r:0, win:0, pass:false};
+  let gm=0, sm=0;
+  for(let i=0;i<n;i++){ gm+=guideBins[i]; sm+=sungBins[i]; }
+  gm/=n; sm/=n;
+  let sgg=0, sss=0, sgs=0, points=0;
+  for(let i=0;i<n;i++){
+    const dg=guideBins[i]-gm, ds=sungBins[i]-sm;
+    sgg+=dg*dg; sss+=ds*ds; sgs+=dg*ds;
+    if(Math.abs(dg-ds) < 30) points++;
+  }
+  const r=sgs/Math.sqrt(sgg*sss||1e-9), win=points/n;
+  return {r, win, pass: r>=0.45 && win>=0.55};
 }
 
 // ==========================================================================
@@ -423,18 +464,21 @@ const speak = {
       // one pitch sample per frame, smoothed over NUMREADINGS — whaleSong.mm
       let bin = this.micOK ? pitchBin() : clamp(map(pointer.y,H-140,H-290,0,150),0,150);
       if(DEMO) bin = MELODIES[wheel.currentSong][Math.min(this.bins.length,SAMPLESIZE-1)] + Math.sin(this.bins.length*0.4)*22;
-      if(bin==null) bin=0;
+      if(bin==null){
+        if(this.bins.length===0) break;            // recording starts at your first note
+        bin=this.bins[this.bins.length-1];          // hold pitch through breaths
+      }
+      if(this.bins.length===0){                     // seed the smoother, don't drag from 0
+        this.readings.fill(bin); this.rTotal=bin*NUMREADINGS;
+      }
       this.rTotal-=this.readings[this.rIndex];
       this.readings[this.rIndex]=bin;
       this.rTotal+=bin; this.rIndex=(this.rIndex+1)%NUMREADINGS;
       const avg=this.rTotal/NUMREADINGS;
       this.bins.push(avg); singing.letsGo(avg);
       if(this.bins.length>=SAMPLESIZE-1){          // atEnd -> checkSong()
-        const mel=MELODIES[wheel.currentSong];
-        let points=0;
-        for(let i=0;i<Math.min(mel.length,this.bins.length);i++)
-          if(Math.abs(mel[i]-this.bins[i])<THRESHOLD) points++;
-        this.finish(points > mel.length - mel.length/3, now);
+        const mel=movingAvg(MELODIES[wheel.currentSong]);
+        this.finish(scoreContours(mel, this.bins).pass, now);
       }
     }
     if((this.state==='correct'||this.state==='wrong') && now>this.replyUntil){
@@ -482,7 +526,20 @@ const speak = {
     if(this.state==='singing'){
       ctx.fillStyle='rgb(232,58,37)';
       ctx.font='bold 22px "Avenir Next", Futura, sans-serif'; ctx.textAlign='left';
-      ctx.fillText(this.micOK?'●  listening…':'no mic — hum with the mouse (up = high)!', 365, H-60);
+      const msg = !this.micOK ? 'no mic — hum with the mouse (up = high)!' :
+                  this.bins.length===0 ? '●  sing when ready — la, hum, whistle. Match the shape!' :
+                  '●  hearing you…';
+      ctx.fillText(msg, 365, H-60);
+      // live pitch dot riding the tip of your contour
+      if(this.bins.length>0){
+        const tipX=this.guideX+(this.bins.length-1)*10;
+        const tipY=this.songLocY-this.bins[this.bins.length-1];
+        const pulse=3+Math.sin(now/90)*1.5;
+        ctx.beginPath(); ctx.arc(tipX,tipY,6+pulse,0,7);
+        ctx.fillStyle='rgba(232,58,37,0.35)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(tipX,tipY,5,0,7);
+        ctx.fillStyle='rgb(232,58,37)'; ctx.fill();
+      }
     }
     if(this.state!=='waiting'){
       ctx.fillStyle='rgba(60,60,60,0.45)';
