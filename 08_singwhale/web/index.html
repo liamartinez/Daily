@@ -221,11 +221,22 @@ const PHRASES = [
   "Do you like tacos?",       "Where is your mom?"
 ];
 const ICONS  = ["🎁","🌈","👻","🛌","🥕","💨","🦈","⭐","🌮","🐳"];
-const REPLIES_OK = [
+const REPLIES_OK = [   // invented — the originals were story art (lost) + whale sounds
   "A gift!? For meee?", "Blue. Obviously.", "gHoStS?! ...yes.",
   "Five more minutes…", "CARROT!! omnomnom", "BRRRRUUUUURP. Loud enough?",
   "AAAAH! Wait, that's my cousin.", "Me too. So shiny.",
   "Whale tacos? Rude. (yes)", "MOOOOOM! ...she's busy."
+];
+const REPLIES_WRONG = [   // verbatim from songWrong.mm (dontSpeak[])
+  "I'm sorry,\nI don't speak armadillo",
+  "I'm sorry,\nI don't speak dolphin",
+  "I'm sorry,\nI don't speak chihuahua",
+  "What was that?",
+  "Perhaps if you\nENUNCIATE?"
+];
+const SMALLTALK = [       // verbatim from songWaiting.mm (songSmallTalk[])
+  "Hi,\nwhat's up?", "La la la",
+  "Is there anything you\nwanted to ask?", "Yes?", "Dum dee dum dee"
 ];
 const SAMPLESIZE = 70, NUMREADINGS = 5;  // 2012 used 10 readings; 5 lags less
 // the live singing gets a moving average, so the guide must get the identical
@@ -575,7 +586,8 @@ const speak = {
     if((this.state==='correct'||this.state==='wrong') && now<this.replyUntil)
       speechBubble(whale.loc.x-40, whale.loc.y-210, this.reply, this.state==='wrong');
     if(this.state==='waiting' && Math.floor(now/4000)%3===0)
-      speechBubble(whale.loc.x-40, whale.loc.y-210, "Is there anything\nyou wanted to ask?", false);
+      speechBubble(whale.loc.x-40, whale.loc.y-210,
+        SMALLTALK[Math.floor(now/12000)%SMALLTALK.length], false);
 
     // soft panel grounding the karaoke area
     ctx.save();
@@ -677,7 +689,7 @@ const speak = {
             this.vignette={ icon:ICONS[i], t0:now,
                             mode:[0,4,8].includes(i)?'eat':'float' }; }
     else  { sndWrong();  whale.frownOn=true; this.vignette=null;
-            this.reply="Hmmm? That's not how it goes. Try again!"; }
+            this.reply=REPLIES_WRONG[Math.floor(Math.random()*REPLIES_WRONG.length)]; }
   },
   // little payoff scene: the phrase's icon comes to life near the whale
   drawVignette(now){
