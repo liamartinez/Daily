@@ -25,7 +25,7 @@
   <div id="homebtn"></div>
   <canvas id="c" width="1024" height="768"></canvas>
 </div>
-<div id="hint">SING WHALE · Lia Martinez, ITP 2012 · web recreation · drag the wheel, press the red button, sing to the whale 🎤</div>
+<div id="hint">SING WHALE · Lia Martinez, ITP 2012 · web recreation · drag the wheel, press the red button, sing to the whale 🎤 · keys: space = button, C = auto-pass, X = fail</div>
 <script>
 /* ============================================================
    SING WHALE — web recreation of SingWhale07 (openFrameworks/iPad, 2012)
@@ -434,13 +434,7 @@ const speak = {
         let points=0;
         for(let i=0;i<Math.min(mel.length,this.bins.length);i++)
           if(Math.abs(mel[i]-this.bins[i])<THRESHOLD) points++;
-        const ok = points > mel.length - mel.length/3;
-        this.state = ok?'correct':'wrong';
-        this.replyUntil=DEMO?Infinity:now+3500;
-        if(ok){ sndCorrect(); whale.smileOn=true; whale.blowUntil=now+2500;
-                this.reply=REPLIES_OK[wheel.currentSong]; }
-        else  { sndWrong();  whale.frownOn=true;
-                this.reply="Hmmm? That's not how it goes. Try again!"; }
+        this.finish(points > mel.length - mel.length/3, now);
       }
     }
     if((this.state==='correct'||this.state==='wrong') && now>this.replyUntil){
@@ -490,6 +484,11 @@ const speak = {
       ctx.font='bold 22px "Avenir Next", Futura, sans-serif'; ctx.textAlign='left';
       ctx.fillText(this.micOK?'●  listening…':'no mic — hum with the mouse (up = high)!', 365, H-60);
     }
+    if(this.state!=='waiting'){
+      ctx.fillStyle='rgba(60,60,60,0.45)';
+      ctx.font='15px "Avenir Next", Futura, sans-serif'; ctx.textAlign='right';
+      ctx.fillText('debug: C = pass · X = fail · space = button', W-20, 32);
+    }
 
     // the big red button (startSingingButt) — the hub of the wheel
     const bp = pointer.down && inBtn(pointer.x,pointer.y);
@@ -508,6 +507,26 @@ const speak = {
 
     wheel.draw( (this.state==='yousing') ? 100+155*(0.5+0.5*Math.sin(now/180)) : 255 );
     backArrow();
+  },
+  finish(ok, now){
+    this.state = ok?'correct':'wrong';
+    this.replyUntil=DEMO?Infinity:now+3500;
+    if(ok){ sndCorrect(); whale.smileOn=true; whale.blowUntil=now+2500;
+            this.reply=REPLIES_OK[wheel.currentSong]; }
+    else  { sndWrong();  whale.frownOn=true;
+            this.reply="Hmmm? That's not how it goes. Try again!"; }
+  },
+  // the 2012 two-finger debug tap (whaleSong::touchUp, debugCorrect), reborn as keys
+  debugFinish(ok, now){
+    if(!['playing','yousing','singing'].includes(this.state)){
+      if(this.state==='waiting') this.begin(now);   // nothing loaded yet: load a song first
+      else return;
+    }
+    if(ok) while(this.bins.length<SAMPLESIZE-1){    // fill in a plausible singing blob
+      const b=MELODIES[wheel.currentSong][this.bins.length]+Math.sin(this.bins.length*0.4)*20;
+      this.bins.push(b); singing.letsGo(b);
+    }
+    this.finish(ok, now);
   },
   press(now){
     // startSingingButt logic from speakScene::touchUp
@@ -663,6 +682,13 @@ function onDown(e){
 function onMove(e){ const p=canvasXY(e); pointer.x=p.x; pointer.y=p.y;
   if(scene==='speak') wheel.touchMoved(p.x,p.y); e.preventDefault(); }
 function onUp(){ pointer.down=false; wheel.touchUp(); }
+addEventListener('keydown',e=>{
+  if(scene!=='speak') return;
+  const now=performance.now(), k=e.key.toLowerCase();
+  if(k===' '){ speak.press(now); e.preventDefault(); }   // space = the red button
+  if(k==='c') speak.debugFinish(true, now);              // force "you got it"
+  if(k==='x') speak.debugFinish(false, now);             // force "try again"
+});
 cv.addEventListener('mousedown',onDown); cv.addEventListener('mousemove',onMove);
 addEventListener('mouseup',onUp);
 cv.addEventListener('touchstart',onDown,{passive:false});
