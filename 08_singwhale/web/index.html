@@ -25,7 +25,7 @@
   <div id="homebtn"></div>
   <canvas id="c" width="1024" height="768"></canvas>
 </div>
-<div id="hint">SING WHALE · Lia Martinez, ITP 2012 · web recreation · drag the wheel, press the red button, sing to the whale 🎤 · keys: space = button, C = auto-pass, X = fail</div>
+<div id="hint">SING WHALE · Lia Martinez, ITP 2012 · web recreation · drag the wheel, press the red button, sing to the whale 🎤 · R = record your own melody · C/X = pass/fail · space = button</div>
 <script>
 /* ============================================================
    SING WHALE — web recreation of SingWhale07 (openFrameworks/iPad, 2012)
@@ -158,13 +158,23 @@ const whale = {
       if(q.life<=0) this.particles.splice(i,1);
     }
   },
-  draw(pointer){
+  draw(pointer, now=0){
     ctx.save();
     ctx.translate(this.loc.x, this.loc.y + (this.loc.yOff||0));
     // body — white with thin dark outline, like the surviving logo art
     curveShape(this.parts, true);
     ctx.fillStyle='#f6f8f7'; ctx.fill();
     ctx.lineWidth=3; ctx.strokeStyle='rgb(60,60,60)'; ctx.lineJoin='round'; ctx.stroke();
+    // throat pleats — the thin line details the logo whale has
+    ctx.save(); ctx.clip();
+    ctx.lineWidth=1.5; ctx.strokeStyle='rgba(60,60,60,0.28)';
+    for(let k=0;k<3;k++){
+      ctx.beginPath();
+      ctx.moveTo(230, 55+k*22);
+      ctx.quadraticCurveTo(80, 120+k*20, -100, 95+k*20);
+      ctx.stroke();
+    }
+    ctx.restore();
     // flipper — small paddle hanging off the belly, like the logo art
     const flap = Math.sin(this.theta*1.5)*6;
     ctx.save(); ctx.translate(70,62); ctx.rotate(0.55+flap*0.02);
@@ -177,12 +187,18 @@ const whale = {
     ctx.moveTo(ME.x-20, ME.y+52);
     ctx.quadraticCurveTo(ME.x-100, ME.y+84+(this.smileOn?-22:this.frownOn?24:0), ME.x-180, ME.y+62);
     ctx.stroke();
-    // eye — pupil follows the finger (whaleMove.mm)
+    // eye — pupil follows the finger (whaleMove.mm); blinks every few seconds
     const eye={x:ME.x-48, y:ME.y+18};
-    ctx.beginPath(); ctx.arc(eye.x,eye.y,10,0,7); ctx.fillStyle='#fff'; ctx.fill(); ctx.stroke();
-    let dx=pointer.x-(this.loc.x+eye.x), dy=pointer.y-(this.loc.y+eye.y);
-    const d=Math.hypot(dx,dy)||1; dx=dx/d*3.5; dy=dy/d*3.5;
-    ctx.beginPath(); ctx.arc(eye.x+dx,eye.y+dy,4,0,7); ctx.fillStyle='rgb(60,60,60)'; ctx.fill();
+    const blink = (now % 4200) < 130;
+    if(blink){
+      ctx.beginPath(); ctx.moveTo(eye.x-10,eye.y); ctx.quadraticCurveTo(eye.x,eye.y+6,eye.x+10,eye.y);
+      ctx.lineWidth=3; ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(eye.x,eye.y,10,0,7); ctx.fillStyle='#fff'; ctx.fill(); ctx.stroke();
+      let dx=pointer.x-(this.loc.x+eye.x), dy=pointer.y-(this.loc.y+eye.y);
+      const d=Math.hypot(dx,dy)||1; dx=dx/d*3.5; dy=dy/d*3.5;
+      ctx.beginPath(); ctx.arc(eye.x+dx,eye.y+dy,4,0,7); ctx.fillStyle='rgb(60,60,60)'; ctx.fill();
+    }
     ctx.restore();
     // bubbles
     for(const q of this.particles){
@@ -234,6 +250,16 @@ function makeMelody(seed){
   return bins;
 }
 const MELODIES = PHRASES.map((_,i)=>makeMelody(i+1));
+// custom melodies recorded with the R key (the 2012 SongSaver dream, finished)
+const customSong = new Array(10).fill(false);
+for(let i=0;i<10;i++){
+  try{ const s=localStorage.getItem('sw-melody-'+i);
+       if(s){ MELODIES[i]=JSON.parse(s); customSong[i]=true; } }catch(e){}
+}
+function saveCustomMelody(i, bins){
+  MELODIES[i]=bins.slice(); customSong[i]=true;
+  try{ localStorage.setItem('sw-melody-'+i, JSON.stringify(MELODIES[i])); }catch(e){}
+}
 
 // ==========================================================================
 // AUDIO — WebAudio stand-ins for the lost .caf files + ofxMaxim analyzer
@@ -243,19 +269,43 @@ function audio(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioC
 function playWhaleSong(mel, secs=3.2){
   try{
   const ac=audio(), t0=ac.currentTime;
-  const o=ac.createOscillator(), g=ac.createGain(), v=ac.createOscillator(), vg=ac.createGain();
-  o.type='sine';
-  v.frequency.value=5.5; vg.gain.value=9; v.connect(vg); vg.connect(o.frequency); v.start(t0);
-  for(let i=0;i<mel.length;i++)
-    o.frequency.setValueAtTime(180+mel[i]*2.6, t0+ secs*i/mel.length);
+  // whale voice: gliding triangle through a lowpass, soft octave shimmer,
+  // slow vibrato — rounder and more underwater than the old raw sine
+  const o=ac.createOscillator(), o2=ac.createOscillator();
+  const g=ac.createGain(), g2=ac.createGain(), lp=ac.createBiquadFilter();
+  const v=ac.createOscillator(), vg=ac.createGain();
+  o.type='triangle'; o2.type='sine';
+  lp.type='lowpass'; lp.frequency.value=850; lp.Q.value=0.8;
+  v.frequency.value=5; vg.gain.value=10; v.connect(vg);
+  vg.connect(o.frequency); vg.connect(o2.frequency); v.start(t0);
+  o.frequency.setValueAtTime(180+mel[0]*2.6, t0);
+  o2.frequency.setValueAtTime((180+mel[0]*2.6)*2, t0);
+  for(let i=1;i<mel.length;i++){                 // glide, don't step
+    const f=180+mel[i]*2.6, t=t0+secs*i/mel.length;
+    o.frequency.linearRampToValueAtTime(f, t);
+    o2.frequency.linearRampToValueAtTime(f*2, t);
+  }
   g.gain.setValueAtTime(0,t0);
-  g.gain.linearRampToValueAtTime(0.25,t0+0.1);
-  g.gain.setValueAtTime(0.25,t0+secs-0.15);
+  g.gain.linearRampToValueAtTime(0.28,t0+0.15);
+  g.gain.setValueAtTime(0.28,t0+secs-0.2);
   g.gain.linearRampToValueAtTime(0,t0+secs);
-  o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0+secs);
-  v.stop(t0+secs);
+  g2.gain.value=0.05;
+  o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(ac.destination);
+  o.start(t0); o.stop(t0+secs); o2.start(t0); o2.stop(t0+secs); v.stop(t0+secs);
   }catch(e){}
   return secs;
+}
+// a short whale glide (for reactions): from->to Hz over dur
+function whaleGlide(f0,f1,dur=0.5,vol=0.18,when=0){
+  try{
+  const ac=audio(), t=ac.currentTime+when;
+  const o=ac.createOscillator(), g=ac.createGain(), lp=ac.createBiquadFilter();
+  o.type='triangle'; lp.type='lowpass'; lp.frequency.value=900;
+  o.frequency.setValueAtTime(f0,t); o.frequency.linearRampToValueAtTime(f1,t+dur);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.05);
+  g.gain.setValueAtTime(vol,t+dur-0.1); g.gain.linearRampToValueAtTime(0,t+dur);
+  o.connect(lp); lp.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+dur);
+  }catch(e){}
 }
 function blip(f,dur=0.09,vol=0.2,type='sine',when=0){
   try{
@@ -267,8 +317,9 @@ function blip(f,dur=0.09,vol=0.2,type='sine',when=0){
   }catch(e){}
 }
 const sndPpput   =()=>blip(120+Math.random()*60,0.05,0.08,'square');
-const sndCorrect =()=>{ [520,660,780,1040].forEach((f,i)=>blip(f,0.25,0.12,'sine',i*0.09)); };
-const sndWrong   =()=>{ blip(160,0.5,0.15,'sawtooth'); blip(110,0.5,0.15,'sawtooth',0.02); };
+const sndCorrect =()=>{ whaleGlide(240,520,0.35); whaleGlide(320,640,0.4,0.15,0.3);   // happy whoop-whoop
+                        [700,900,1100].forEach((f,i)=>blip(f,0.18,0.06,'sine',0.5+i*0.1)); };
+const sndWrong   =()=>{ whaleGlide(300,170,0.7,0.16); };                              // sad slide down
 async function startMic(){
   if(mic) return true;
   try{
@@ -388,6 +439,13 @@ const wheel = {
       ctx.globalAlpha=cur?1:.6; ctx.fillText(ICONS[i],0,3);
       ctx.restore();
     }
+    // notch pointer — marks where an icon locks in
+    { const a=-0.9, px=this.cx+Math.cos(a)*(this.r+52), py=this.cy+Math.sin(a)*(this.r+52);
+      ctx.save(); ctx.translate(px,py); ctx.rotate(a+Math.PI/2);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-9,-16); ctx.lineTo(9,-16); ctx.closePath();
+      ctx.fillStyle='#f6f8f7'; ctx.fill();
+      ctx.lineWidth=2.5; ctx.strokeStyle='rgb(60,60,60)'; ctx.lineJoin='round'; ctx.stroke();
+      ctx.restore(); }
     // turtle speech bubble (images/icons/speech.png stand-in)
     const bx=118, by=H-560;
     ctx.save();
@@ -410,7 +468,12 @@ const wheel = {
     this.angle+=d; this.lastX=x; this.lastY=y;
   },
   touchUp(){ if(this.dragging){ this.dragging=false;
-    this.future=0.35; tween(this,'future',0,1.5,easeOutElastic); } }
+    // detent: snap the current icon crisply into the notch, slot-machine style
+    const target=-0.9, TAU=Math.PI*2;
+    let d=(target - this.itemAngle(this.currentSong)) % TAU;
+    if(d>Math.PI) d-=TAU; if(d<-Math.PI) d+=TAU;
+    tween(this,'angle',this.angle+d,1.1,easeOutElastic);
+  } }
 };
 
 // ==========================================================================
@@ -448,6 +511,13 @@ const speak = {
     this.readings.fill(0); this.rTotal=0; this.rIndex=0;
     this.state='singing';
   },
+  async startRecording(now){
+    this.micOK=await startMic();
+    this.bins=[]; singing.reset(); guide.reset();
+    this.readings.fill(0); this.rTotal=0; this.rIndex=0;
+    this.songLocY=H+60; tween(this,'songLocY',H-140,1.0,easeOutQuad);
+    this.state='recording';
+  },
   update(now){
     wheel.update();
     if(wheel.poked){ wheel.poked=false;
@@ -460,10 +530,12 @@ const speak = {
       this.micOK=false; this.bins=[]; singing.reset();
       this.readings.fill(0); this.rTotal=0; this.rIndex=0; this.state='singing';
     }
-    if(this.state==='singing') for(let rep=0; rep<(DEMO?SAMPLESIZE:1) && this.state==='singing'; rep++){
+    const capturing = this.state==='singing'||this.state==='recording';
+    if(capturing) for(let rep=0; rep<(DEMO&&this.state==='singing'?SAMPLESIZE:1)
+                      && (this.state==='singing'||this.state==='recording'); rep++){
       // one pitch sample per frame, smoothed over NUMREADINGS — whaleSong.mm
       let bin = this.micOK ? pitchBin() : clamp(map(pointer.y,H-140,H-290,0,150),0,150);
-      if(DEMO) bin = MELODIES[wheel.currentSong][Math.min(this.bins.length,SAMPLESIZE-1)] + Math.sin(this.bins.length*0.4)*22;
+      if(DEMO && this.state==='singing') bin = MELODIES[wheel.currentSong][Math.min(this.bins.length,SAMPLESIZE-1)] + Math.sin(this.bins.length*0.4)*22;
       if(bin==null){
         if(this.bins.length===0) break;            // recording starts at your first note
         bin=this.bins[this.bins.length-1];          // hold pitch through breaths
@@ -476,9 +548,16 @@ const speak = {
       this.rTotal+=bin; this.rIndex=(this.rIndex+1)%NUMREADINGS;
       const avg=this.rTotal/NUMREADINGS;
       this.bins.push(avg); singing.letsGo(avg);
-      if(this.bins.length>=SAMPLESIZE-1){          // atEnd -> checkSong()
-        const mel=movingAvg(MELODIES[wheel.currentSong]);
-        this.finish(scoreContours(mel, this.bins).pass, now);
+      if(this.bins.length>=SAMPLESIZE-1){          // atEnd
+        if(this.state==='recording'){              // -> this IS the song now
+          saveCustomMelody(wheel.currentSong, this.bins);
+          this.toast={msg:'♪ saved — that’s how this one goes now (R to re-record)', until:now+3500};
+          this.state='waiting'; guide.reset(); singing.reset();
+          whaleGlide(220,420,0.4,0.14);
+        } else {                                   // -> checkSong()
+          const mel=movingAvg(MELODIES[wheel.currentSong]);
+          this.finish(scoreContours(mel, this.bins).pass, now);
+        }
       }
     }
     if((this.state==='correct'||this.state==='wrong') && now>this.replyUntil){
@@ -489,7 +568,8 @@ const speak = {
   },
   draw(now){
     drawOcean(now);
-    whale.draw(pointer);
+    whale.draw(pointer, now);
+    this.drawVignette(now);
 
     // whale's reply in a speech bubble
     if((this.state==='correct'||this.state==='wrong') && now<this.replyUntil)
@@ -497,11 +577,22 @@ const speak = {
     if(this.state==='waiting' && Math.floor(now/4000)%3===0)
       speechBubble(whale.loc.x-40, whale.loc.y-210, "Is there anything\nyou wanted to ask?", false);
 
+    // soft panel grounding the karaoke area
+    ctx.save();
+    roundRect(325, H-310, W-325+20, 290, 20);
+    ctx.fillStyle='rgba(246,248,247,0.22)'; ctx.fill();
+    ctx.restore();
+
     // phrase text — ofSetColor(200,75,90), guideArea (315, H-245)
     ctx.fillStyle='rgb(200,75,90)';
     ctx.font='bold 40px "Avenir Next", Futura, sans-serif';
     ctx.textAlign='left'; ctx.textBaseline='alphabetic';
     ctx.fillText(PHRASES[wheel.currentSong], 365, H-175);
+    if(customSong[wheel.currentSong]){
+      ctx.fillStyle='rgba(60,60,60,0.55)';
+      ctx.font='bold 15px "Avenir Next", Futura, sans-serif';
+      ctx.fillText('♪ your recording', 368, H-150);
+    }
 
     // the guide + singing blobs (translated like speakScene.mm)
     guide.draw(this.guideX, this.songLocY);
@@ -523,12 +614,14 @@ const speak = {
       ctx.font='bold 54px "Avenir Next", Futura, sans-serif'; ctx.textAlign='center';
       ctx.fillText('SING!',0,0); ctx.restore();
     }
-    if(this.state==='singing'){
+    if(this.state==='singing'||this.state==='recording'){
       ctx.fillStyle='rgb(232,58,37)';
       ctx.font='bold 22px "Avenir Next", Futura, sans-serif'; ctx.textAlign='left';
+      const rec=this.state==='recording';
       const msg = !this.micOK ? 'no mic — hum with the mouse (up = high)!' :
-                  this.bins.length===0 ? '●  sing when ready — la, hum, whistle. Match the shape!' :
-                  '●  hearing you…';
+                  this.bins.length===0 ? (rec?'●  recording a new melody — sing it your way!'
+                                             :'●  sing when ready — la, hum, whistle. Match the shape!') :
+                  rec ? '●  recording…' : '●  hearing you…';
       ctx.fillText(msg, 365, H-60);
       // live pitch dot riding the tip of your contour
       if(this.bins.length>0){
@@ -541,11 +634,9 @@ const speak = {
         ctx.fillStyle='rgb(232,58,37)'; ctx.fill();
       }
     }
-    if(this.state!=='waiting'){
-      ctx.fillStyle='rgba(60,60,60,0.45)';
-      ctx.font='15px "Avenir Next", Futura, sans-serif'; ctx.textAlign='right';
-      ctx.fillText('debug: C = pass · X = fail · space = button', W-20, 32);
-    }
+    ctx.fillStyle='rgba(60,60,60,0.45)';
+    ctx.font='15px "Avenir Next", Futura, sans-serif'; ctx.textAlign='right';
+    ctx.fillText('R = record your own melody · C = pass · X = fail · space = button', W-20, 32);
 
     // the big red button (startSingingButt) — the hub of the wheel
     const bp = pointer.down && inBtn(pointer.x,pointer.y);
@@ -564,14 +655,64 @@ const speak = {
 
     wheel.draw( (this.state==='yousing') ? 100+155*(0.5+0.5*Math.sin(now/180)) : 255 );
     backArrow();
+
+    if(this.toast && now<this.toast.until){
+      ctx.save();
+      ctx.font='bold 20px "Avenir Next", Futura, sans-serif';
+      const tw=ctx.measureText(this.toast.msg).width+56;
+      roundRect(W/2-tw/2, 58, tw, 46, 23);
+      ctx.fillStyle='rgba(246,248,247,0.95)'; ctx.fill();
+      ctx.lineWidth=2.5; ctx.strokeStyle='rgb(60,60,60)'; ctx.stroke();
+      ctx.fillStyle='rgb(60,60,60)'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(this.toast.msg, W/2, 82);
+      ctx.restore();
+    }
   },
   finish(ok, now){
     this.state = ok?'correct':'wrong';
     this.replyUntil=DEMO?Infinity:now+3500;
     if(ok){ sndCorrect(); whale.smileOn=true; whale.blowUntil=now+2500;
-            this.reply=REPLIES_OK[wheel.currentSong]; }
-    else  { sndWrong();  whale.frownOn=true;
+            this.reply=REPLIES_OK[wheel.currentSong];
+            const i=wheel.currentSong;
+            this.vignette={ icon:ICONS[i], t0:now,
+                            mode:[0,4,8].includes(i)?'eat':'float' }; }
+    else  { sndWrong();  whale.frownOn=true; this.vignette=null;
             this.reply="Hmmm? That's not how it goes. Try again!"; }
+  },
+  // little payoff scene: the phrase's icon comes to life near the whale
+  drawVignette(now){
+    if(!this.vignette) return;
+    const v=this.vignette, t=(now-v.t0)/1000;
+    const ME=whale.parts[MOUTH_EDGE];
+    const mouth={x:whale.loc.x+ME.x-40, y:whale.loc.y+(whale.loc.yOff||0)+ME.y+40};
+    ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
+    if(v.mode==='eat'){                        // drifts into the mouth, gulp
+      const dur=1.9;
+      if(t>dur+0.1){ this.vignette=null; ctx.restore(); return; }
+      const p=easeInOutQuad(clamp(t/dur,0,1));
+      const x0=W-120, y0=140;
+      const x=x0+(mouth.x-x0)*p, y=y0+(mouth.y-y0)*p+Math.sin(t*6)*8*(1-p);
+      const s=1-0.75*Math.pow(p,3);
+      if(p>=1 && !v.gulped){                    // gulp bubbles, once
+        v.gulped=true;
+        for(let i=0;i<6;i++) whale.particles.push({
+          x:mouth.x+(Math.random()*30-15), y:mouth.y+(Math.random()*20-10),
+          vx:Math.random()*1-0.5, vy:-(1+Math.random()*2), r:2+Math.random()*4, life:1 });
+      }
+      ctx.font=`${Math.round(64*s)}px serif`;
+      ctx.globalAlpha=clamp(1.2-p,0,1);
+      ctx.fillText(v.icon, x, y);
+    } else {                                    // floats past, says hello, fades
+      const dur=3.0;
+      if(t>dur){ this.vignette=null; ctx.restore(); return; }
+      const p=t/dur;
+      const x=W-80-(W*0.45)*easeOutQuad(p);
+      const y=170+Math.sin(t*2.4)*22;
+      ctx.font='72px serif';
+      ctx.globalAlpha=p<0.15 ? p/0.15 : p>0.75 ? (1-p)/0.25 : 1;
+      ctx.fillText(v.icon, x, y);
+    }
+    ctx.restore();
   },
   // the 2012 two-finger debug tap (whaleSong::touchUp, debugCorrect), reborn as keys
   debugFinish(ok, now){
@@ -587,6 +728,7 @@ const speak = {
   },
   press(now){
     // startSingingButt logic from speakScene::touchUp
+    if(this.state==='recording')    return;      // let the recording finish
     if(this.state==='waiting')      this.begin(now);
     else if(this.state==='playing') { /* patience, whale is singing */ }
     else if(this.state==='yousing') this.startSinging(now);
@@ -618,10 +760,34 @@ function speechBubble(x,y,text,upset){
   ctx.restore();
 }
 let bgBubbles=[...Array(14)].map(()=>({x:Math.random()*W,y:Math.random()*H,r:2+Math.random()*5,s:0.2+Math.random()*0.5}));
+// jellyfish drifters — a nod to the lost story/7-jellies.png
+let jellies=[...Array(3)].map((_,i)=>({x:150+i*380+Math.random()*120, y:150+Math.random()*350,
+  s:22+Math.random()*14, ph:Math.random()*6.28, vy:0.10+Math.random()*0.12}));
+function drawJelly(j, now){
+  const pulse=Math.sin(now/600+j.ph)*0.15+1;
+  const x=j.x+Math.sin(now/2400+j.ph)*14, y=j.y;
+  ctx.save(); ctx.translate(x,y); ctx.scale(j.s/24*pulse, j.s/24);
+  ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.5)';
+  ctx.fillStyle='rgba(255,255,255,0.16)';
+  ctx.beginPath(); ctx.arc(0,0,24,Math.PI,0); ctx.quadraticCurveTo(12,10,0,8);
+  ctx.quadraticCurveTo(-12,10,-24,0); ctx.closePath(); ctx.fill(); ctx.stroke();
+  for(let t=0;t<4;t++){
+    const tx=-15+t*10;
+    ctx.beginPath(); ctx.moveTo(tx,8);
+    ctx.quadraticCurveTo(tx+Math.sin(now/300+t+j.ph)*7, 26, tx+Math.sin(now/300+t*2+j.ph)*10, 42);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
 function drawOcean(now){
   const g=ctx.createLinearGradient(0,0,0,H);
   g.addColorStop(0,'#79b4d8'); g.addColorStop(0.6,'#65a5cd'); g.addColorStop(1,'#4f8fbc');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // surface shimmer
+  ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.22)'; ctx.lineWidth=2.5;
+  ctx.beginPath();
+  for(let x=0;x<=W;x+=16) ctx.lineTo(x, 14+Math.sin(x/70+now/900)*4);
+  ctx.stroke(); ctx.restore();
   // light rays
   ctx.save(); ctx.globalAlpha=0.07; ctx.fillStyle='#fff';
   for(let i=0;i<4;i++){
@@ -630,6 +796,10 @@ function drawOcean(now){
     ctx.closePath(); ctx.fill();
   }
   ctx.restore();
+  for(const j of jellies){
+    j.y-=j.vy; if(j.y<-70){ j.y=H+70; j.x=80+Math.random()*(W-160); }
+    drawJelly(j, now);
+  }
   for(const b of bgBubbles){
     b.y-=b.s; if(b.y<-10){b.y=H+10;b.x=Math.random()*W;}
     ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7);
@@ -697,7 +867,7 @@ let introPage=0;
 function drawIntro(now){
   drawOcean(now);
   const oy=whale.loc.y; whale.loc.y=470;      // swim lower, under the story card
-  whale.update(now); whale.draw(pointer);
+  whale.update(now); whale.draw(pointer, now);
   whale.loc.y=oy;
   ctx.fillStyle='rgba(246,248,247,1)';
   roundRect(122,120,780,190,24); ctx.fill();
@@ -745,6 +915,8 @@ addEventListener('keydown',e=>{
   if(k===' '){ speak.press(now); e.preventDefault(); }   // space = the red button
   if(k==='c') speak.debugFinish(true, now);              // force "you got it"
   if(k==='x') speak.debugFinish(false, now);             // force "try again"
+  if(k==='r' && speak.state!=='recording' && speak.state!=='singing')
+    speak.startRecording(now);                           // record your own melody
 });
 cv.addEventListener('mousedown',onDown); cv.addEventListener('mousemove',onMove);
 addEventListener('mouseup',onUp);
