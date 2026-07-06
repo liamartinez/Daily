@@ -1,0 +1,18 @@
+name: Moe Stage 0
+description: "Silent-movie boss: the webcam wakes Moe, missions scroll on the LED matrix, kids do his bidding."
+icon: 😴
+version: "0.1.0"
+ports:
+  - 8737   # live console hub (moe_console.html / SSE telemetry)
+# IMPORTANT: the safest way to add the person-detection brick is from inside
+# App Lab (Bricks tab -> add "Video Image Classification", pick the person
+# model). App Lab will rewrite this section with the exact id/version your
+# install uses. The line below is what it typically looks like:
+bricks:
+  - arduino:video_object_detection: {}   # YoloX: "person" wakes Moe, COCO
+                                         # objects (spoon, banana, book…)
+                                         # verify fetch missions on camera
+# NOTE: this App Lab version's brick registry has NO gesture_recognition or
+# tts brick (the newer example catalog references them). Salute falls back to
+# stand-at-attention/button; voice is pre-rendered WAVs in python/sounds/voice.
+

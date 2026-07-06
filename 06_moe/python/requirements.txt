@@ -1,0 +1,2 @@
+# No extra Python packages needed for Stage 0.
+# The person-detection brick brings its own container.
